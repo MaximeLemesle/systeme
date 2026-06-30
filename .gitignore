@@ -1,0 +1,19 @@
+# Dépendances
+node_modules/
+
+# Variables d'environnement (secrets)
+.env
+.env.local
+
+# Base SQLite
+*.db
+*.db-journal
+server/prisma/dev.db*
+
+# Build front
+dist/
+
+# Logs & divers
+logs/
+*.log
+.DS_Store
