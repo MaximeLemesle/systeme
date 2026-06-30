@@ -1,9 +1,9 @@
-// Composants UI réutilisables — thème clair, simple et lisible (Tailwind).
+// Composants UI réutilisables — thème cockpit clair et dense.
 
 export function Card({ className = "", children, ...props }) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}
+      className={`rounded-lg border border-slate-200/80 bg-white/90 p-5 shadow-xl shadow-slate-900/5 backdrop-blur ${className}`}
       {...props}
     >
       {children}
@@ -14,15 +14,15 @@ export function Card({ className = "", children, ...props }) {
 export function Button({ variant = "primary", className = "", ...props }) {
   const variants = {
     primary:
-      "bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed",
+      "bg-[#15615f] text-white shadow-lg shadow-teal-900/15 hover:bg-[#0f4f4d] disabled:opacity-50 disabled:cursor-not-allowed",
     ghost:
-      "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300",
-    success: "bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-50",
-    danger: "bg-rose-600 hover:bg-rose-500 text-white",
+      "border border-slate-300 bg-white/75 text-slate-700 hover:border-[#15615f]/40 hover:bg-white",
+    success: "bg-[#d89b2b] text-white shadow-lg shadow-amber-900/15 hover:bg-[#c8891f] disabled:opacity-50",
+    danger: "bg-[#b84040] text-white shadow-lg shadow-rose-900/15 hover:bg-[#963535]",
   };
   return (
     <button
-      className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${variants[variant]} ${className}`}
+      className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition duration-150 hover:-translate-y-0.5 active:translate-y-0 ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -31,7 +31,7 @@ export function Button({ variant = "primary", className = "", ...props }) {
 export function Field({ label, hint, children }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1 block font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
     </label>
@@ -39,7 +39,7 @@ export function Field({ label, hint, children }) {
 }
 
 const inputCls =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100";
+  "w-full rounded-lg border border-slate-300/90 bg-white/90 px-3 py-2.5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#15615f] focus:ring-2 focus:ring-[#15615f]/15";
 
 export function Input(props) {
   return <input {...props} className={`${inputCls} ${props.className || ""}`} />;
@@ -64,11 +64,11 @@ export function Spinner({ className = "" }) {
 // Bandeau de chargement pour les appels IA (lents avec un modèle local).
 export function AiLoader({ label = "L'IA réfléchit…" }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+    <div className="flex items-center gap-3 rounded-lg border border-[#356c9f]/25 bg-[#356c9f]/10 px-4 py-3 text-sm text-[#244d73]">
       <Spinner />
       <div>
         <div className="font-semibold">{label}</div>
-        <div className="text-xs text-emerald-600">
+        <div className="text-xs text-[#356c9f]">
           Modèle local — cela peut prendre jusqu'à ~1–2 min.
         </div>
       </div>
@@ -79,7 +79,7 @@ export function AiLoader({ label = "L'IA réfléchit…" }) {
 export function ErrorMsg({ children }) {
   if (!children) return null;
   return (
-    <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+    <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
       {children}
     </div>
   );
@@ -87,15 +87,16 @@ export function ErrorMsg({ children }) {
 
 export function Badge({ children, color = "slate" }) {
   const colors = {
-    slate: "bg-slate-100 text-slate-600",
-    green: "bg-emerald-100 text-emerald-700",
-    amber: "bg-amber-100 text-amber-700",
-    sky: "bg-sky-100 text-sky-700",
-    violet: "bg-violet-100 text-violet-700",
-    teal: "bg-teal-100 text-teal-700",
+    slate: "bg-slate-100 text-slate-600 border-slate-200",
+    green: "bg-[#15615f]/10 text-[#15615f] border-[#15615f]/20",
+    amber: "bg-[#d89b2b]/15 text-[#8b5d12] border-[#d89b2b]/25",
+    sky: "bg-[#356c9f]/15 text-[#285179] border-[#356c9f]/25",
+    violet: "bg-[#7657a8]/15 text-[#5a4380] border-[#7657a8]/25",
+    teal: "bg-[#1d8a83]/15 text-[#14625d] border-[#1d8a83]/25",
+    coral: "bg-[#f26a4f]/15 text-[#a33f2f] border-[#f26a4f]/25",
   };
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${colors[color] || colors.slate}`}>
+    <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-bold ${colors[color] || colors.slate}`}>
       {children}
     </span>
   );

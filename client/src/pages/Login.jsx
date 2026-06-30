@@ -31,10 +31,12 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-md border-slate-900/10 bg-white/90">
         <div className="mb-5 text-center">
-          <div className="text-4xl">🎯</div>
-          <h1 className="text-xl font-extrabold text-slate-800">Système d'évolution</h1>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-[#15615f] text-sm font-black text-white shadow-lg shadow-teal-900/15">
+            SE
+          </div>
+          <h1 className="text-2xl font-black text-slate-900">Système d'évolution</h1>
           <p className="text-sm text-slate-500">Connecte-toi pour continuer ta progression</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">

@@ -15,23 +15,23 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
       {/* Progression globale */}
       <div className="mb-4">
         <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="font-semibold text-slate-600">Ta progression</span>
-          <span className="text-slate-400">
+          <span className="font-black text-slate-700">Plan d'action</span>
+          <span className="font-semibold text-slate-400">
             {doneCount} / {total} étapes
           </span>
         </div>
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-3 w-full overflow-hidden rounded-full border border-slate-200 bg-slate-100">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-[#15615f] via-[#356c9f] to-[#d89b2b] transition-all duration-500"
             style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }}
           />
         </div>
       </div>
 
       {/* Le chemin */}
-      <div className="relative mx-auto max-w-xs py-2">
+      <div className="relative mx-auto max-w-sm rounded-lg bg-slate-50/70 px-4 py-4">
         {/* Colonne centrale en pointillés */}
-        <div className="absolute left-1/2 top-4 bottom-4 -translate-x-1/2 border-l-2 border-dashed border-slate-200" />
+        <div className="absolute left-1/2 top-6 bottom-6 -translate-x-1/2 border-l-2 border-dashed border-slate-300" />
 
         <div className="relative z-10 flex flex-col gap-5">
           {steps.map((s, i) => {
@@ -52,9 +52,9 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
             // Style de la pastille selon l'état.
             let node;
             if (isDone) {
-              node = `${meta.node} text-white shadow-md`;
+              node = `${meta.node} text-white shadow-lg shadow-slate-900/15`;
             } else if (isCurrent) {
-              node = "bg-white text-emerald-700 border-4 border-emerald-500 shadow-md pulse-ring";
+              node = "bg-white text-[#15615f] border-4 border-[#15615f] shadow-lg shadow-teal-900/15 pulse-ring";
             } else {
               node = "bg-slate-100 text-slate-400 border border-slate-200";
             }
@@ -75,7 +75,7 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
                   </button>
                   <span
                     className={`mt-1.5 text-center text-xs font-medium ${
-                      isCurrent ? "text-emerald-700" : "text-slate-400"
+                      isCurrent ? "text-[#15615f]" : "text-slate-400"
                     }`}
                   >
                     {isObjectif ? "Objectif" : isCurrent ? "Étape du jour" : `${meta.emoji}`}

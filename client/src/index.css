@@ -2,16 +2,36 @@
 
 :root {
   color-scheme: light;
+  --ink: #172126;
+  --muted: #68757d;
+  --panel: rgba(255, 255, 255, 0.86);
+  --line: rgba(20, 35, 43, 0.12);
+  --teal: #15615f;
+  --coral: #f26a4f;
+  --gold: #d89b2b;
+  --blue: #356c9f;
 }
 
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #f4f7f6;
-  background-image: radial-gradient(900px 500px at 80% -5%, #d9f2e6 0%, rgba(244, 247, 246, 0) 55%);
+  background-color: #eef3f1;
+  background-image:
+    linear-gradient(135deg, rgba(21, 97, 95, 0.14) 0%, rgba(21, 97, 95, 0) 34%),
+    linear-gradient(315deg, rgba(242, 106, 79, 0.12) 0%, rgba(242, 106, 79, 0) 32%),
+    repeating-linear-gradient(0deg, rgba(23, 33, 38, 0.045) 0 1px, transparent 1px 30px),
+    repeating-linear-gradient(90deg, rgba(23, 33, 38, 0.035) 0 1px, transparent 1px 30px);
   background-attachment: fixed;
-  color: #1e293b;
+  color: var(--ink);
   min-height: 100vh;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(242, 106, 79, 0.28);
 }
 
 /* Récompense / apparition */
@@ -29,3 +49,12 @@ body {
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 .pulse-ring { animation: pulse-ring 1.8s infinite; }
+
+@keyframes scan {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(110%); }
+}
+
+.meter-scan::after {
+  animation: scan 2.8s ease-in-out infinite;
+}

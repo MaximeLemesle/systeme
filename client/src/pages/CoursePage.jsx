@@ -15,6 +15,10 @@ import RewardModal from "../components/RewardModal";
 const MAX_DOMAINES = 3;
 const diffColor = { facile: "green", moyen: "amber", difficile: "violet" };
 
+function formatHours(minutes = 0) {
+  return Math.round((minutes / 60) * 10) / 10;
+}
+
 export default function Dashboard() {
   const qc = useQueryClient();
   const [reward, setReward] = useState(null);
@@ -130,10 +134,23 @@ export default function Dashboard() {
   const domaine = data?.domaine || selectedDomain;
   const selected = taches.find((t) => t.id === selectedId) || null;
   const allDone = taches.length > 0 && taches.every((t) => t.status === "fait");
+  const totalMinutes = domaines.reduce((sum, d) => sum + d.totalMinutes, 0);
+  const totalObjectives = domaines.reduce((sum, d) => sum + (d.objectifs?.length || 0), 0);
+  const activeObjectives = domaines.reduce(
+    (sum, d) => sum + (d.objectifs || []).filter((o) => o.status === "en_cours").length,
+    0
+  );
 
   return (
     <div className="space-y-6">
       <RewardModal reward={reward} onClose={() => setReward(null)} />
+
+      <MissionHeader
+        domaineCount={domaines.length}
+        totalHours={formatHours(totalMinutes)}
+        activeObjectives={activeObjectives}
+        totalObjectives={totalObjectives}
+      />
 
       <DomainSwitcher
         domaines={domaines}
@@ -160,14 +177,18 @@ export default function Dashboard() {
       {domaine && !progressQuery.isLoading && (
         <>
           {/* En-tête domaine */}
-          <Card className="space-y-3">
+          <Card className="relative overflow-hidden border-slate-900/10 bg-white/90">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#15615f] via-[#356c9f] to-[#f26a4f]" />
+            <div className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-xl font-extrabold text-slate-800">{domaine.name}</h1>
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#356c9f]">Domaine actif</span>
+                <h1 className="mt-1 text-2xl font-black text-slate-900">{domaine.name}</h1>
                 {domaine.description && <p className="text-sm text-slate-500">{domaine.description}</p>}
               </div>
               <Button
                 variant="danger"
+                className="px-3 py-2"
                 onClick={() => {
                   if (confirm(`Supprimer le domaine "${domaine.name}" et ses objectifs ?`)) {
                     deleteDomain.mutate(domaine.id);
@@ -180,9 +201,10 @@ export default function Dashboard() {
             </div>
             <XpBar totalXp={domaine.totalXp} xpToNextLevel={domaine.xpToNextLevel} level={domaine.level} />
             <p className="text-xs text-slate-400">
-              {Math.round((domaine.totalMinutes / 60) * 10) / 10} h pratiquées dans ce domaine
+              {formatHours(domaine.totalMinutes)} h pratiquées dans ce domaine
             </p>
             {deleteDomain.isError && <ErrorMsg>{deleteDomain.error.message}</ErrorMsg>}
+            </div>
           </Card>
 
           {/* Pas d'objectif actif → création guidée */}
@@ -191,13 +213,13 @@ export default function Dashboard() {
           {/* Objectif actif */}
           {objectif && (
             <>
-          <Card className="space-y-2">
+          <Card className="space-y-3 border-slate-900/10 bg-[#172126] text-white">
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={diffColor[objectif.difficulty]}>{objectif.difficulty}</Badge>
               {objectif.niveau && <Badge>{objectif.niveau}</Badge>}
             </div>
-            <h2 className="text-lg font-bold text-slate-800">{objectif.title}</h2>
-            <p className="text-sm text-slate-500">
+            <h2 className="text-xl font-black">{objectif.title}</h2>
+            <p className="text-sm text-slate-300">
               Cible : {String(objectif.targetValue)} {objectif.unit || ""} ({objectif.metricLabel})
               {objectif.deadline
                 ? ` · échéance ${new Date(objectif.deadline).toLocaleDateString("fr-FR")}`
@@ -207,7 +229,7 @@ export default function Dashboard() {
 
           {/* Plan pas encore généré */}
           {taches.length === 0 && (
-            <Card className="space-y-3 text-center">
+            <Card className="space-y-4 border-dashed border-[#356c9f]/35 bg-[#356c9f]/10 text-center">
               <p className="text-slate-600">
                 Prêt·e ? L'IA va construire ton plan d'action jusqu'à l'objectif.
               </p>
@@ -222,7 +244,7 @@ export default function Dashboard() {
 
           {/* Parcours + détail de l'étape */}
           {taches.length > 0 && (
-            <Card className="space-y-5">
+            <Card className="space-y-5 border-slate-900/10 bg-white/90">
               <TrainingPath seances={taches} selectedId={selectedId} onSelect={setSelectedId} />
 
               {selected && (
@@ -264,14 +286,53 @@ export default function Dashboard() {
   );
 }
 
+function MissionHeader({ domaineCount, totalHours, activeObjectives, totalObjectives }) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-slate-900/10 bg-[#172126] text-white shadow-2xl shadow-slate-900/20">
+      <div className="grid gap-5 p-5 md:grid-cols-2 md:p-6">
+        <div>
+          <div className="mb-3 inline-flex rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#f0c66b]">
+            Atelier de progression
+          </div>
+          <h1 className="max-w-2xl text-3xl font-black leading-tight md:text-4xl">
+            Organise tes domaines, avance étape par étape.
+          </h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
+            Chaque domaine a son objectif actif, son plan IA et son propre niveau. Tu gardes le rythme sans mélanger les progressions.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 self-end">
+          <StatTile label="Domaines" value={`${domaineCount}/3`} tone="teal" />
+          <StatTile label="Heures" value={totalHours} tone="gold" />
+          <StatTile label="Objectifs" value={`${activeObjectives}/${totalObjectives}`} tone="coral" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StatTile({ label, value, tone }) {
+  const tones = {
+    teal: "border-[#53b6ae]/25 bg-[#53b6ae]/15 text-[#91f0e6]",
+    gold: "border-[#f0c66b]/25 bg-[#f0c66b]/15 text-[#ffe2a0]",
+    coral: "border-[#f26a4f]/25 bg-[#f26a4f]/15 text-[#ffb3a3]",
+  };
+  return (
+    <div className={`rounded-lg border p-3 ${tones[tone]}`}>
+      <div className="text-xl font-black">{value}</div>
+      <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] opacity-80">{label}</div>
+    </div>
+  );
+}
+
 function DomainSwitcher({ domaines, selectedDomainId, onSelect, createDomain }) {
   const canCreate = domaines.length < MAX_DOMAINES;
 
   return (
-    <Card className="space-y-4">
+    <Card className="space-y-4 border-slate-900/10 bg-white/80">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Mes domaines</h2>
+          <h2 className="text-lg font-black text-slate-900">Mes domaines</h2>
           <p className="text-sm text-slate-500">{domaines.length} / {MAX_DOMAINES} domaines suivis</p>
         </div>
         {!canCreate && <Badge color="amber">Limite atteinte</Badge>}
@@ -284,14 +345,17 @@ function DomainSwitcher({ domaines, selectedDomainId, onSelect, createDomain }) 
               key={d.id}
               type="button"
               onClick={() => onSelect(d.id)}
-              className={`rounded-xl border p-3 text-left transition ${
+              className={`group rounded-lg border p-3 text-left transition hover:-translate-y-0.5 ${
                 d.id === selectedDomainId
-                  ? "border-emerald-500 bg-emerald-50"
-                  : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                  ? "border-[#15615f] bg-[#15615f]/10 shadow-lg shadow-teal-900/10"
+                  : "border-slate-200 bg-slate-50/80 hover:border-[#356c9f]/35 hover:bg-white"
               }`}
             >
-              <div className="font-semibold text-slate-800">{d.name}</div>
-              <div className="mt-1 text-xs text-slate-500">Niveau {d.level} · {d.totalXp}/{d.xpToNextLevel} XP</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-black text-slate-900">{d.name}</div>
+                <span className={`h-2.5 w-2.5 rounded-full ${d.id === selectedDomainId ? "bg-[#15615f]" : "bg-slate-300 group-hover:bg-[#356c9f]"}`} />
+              </div>
+              <div className="mt-2 text-xs font-medium text-slate-500">Niveau {d.level} · {d.totalXp}/{d.xpToNextLevel} XP</div>
             </button>
           ))}
         </div>
@@ -324,9 +388,9 @@ function DomainCreateForm({ mutation, first }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <form onSubmit={onSubmit} className="grid gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
       <div>
-        <h3 className="font-semibold text-slate-700">
+        <h3 className="font-black text-slate-800">
           {first ? "Créer ton premier domaine" : "Ajouter un domaine"}
         </h3>
       </div>
@@ -361,17 +425,17 @@ function DomainCreateForm({ mutation, first }) {
 function SeanceDetail({ seance, isCurrent, isDone, onComplete, pending }) {
   const meta = categoryMeta(seance.category);
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-1 flex items-center gap-2">
+    <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge color={meta.badge}>
           {meta.emoji} {meta.label}
         </Badge>
         {seance.estDurationMin != null && (
-          <span className="text-xs text-slate-400">≈ {seance.estDurationMin} min</span>
+          <span className="rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-500">≈ {seance.estDurationMin} min</span>
         )}
         {isDone && <Badge color="green">Fait ✓</Badge>}
       </div>
-      <p className="font-semibold text-slate-800">
+      <p className="text-lg font-black text-slate-900">
         {seance.orderIndex}. {seance.title}
       </p>
       {seance.description && <p className="mt-1 text-sm text-slate-600">{seance.description}</p>}
@@ -395,14 +459,14 @@ function ObjectifsHistory({ objectifs }) {
   const termines = (objectifs || []).filter((o) => o.status === "valide");
   if (termines.length === 0) return null;
   return (
-    <Card>
-      <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-400">
+    <Card className="border-slate-900/10 bg-white/80">
+      <h3 className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-slate-400">
         Objectifs atteints
       </h3>
       <ul className="space-y-2">
         {termines.map((o) => (
-          <li key={o.id} className="flex items-center justify-between text-sm">
-            <span className="text-slate-700">🏆 {o.title}</span>
+          <li key={o.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/75 px-3 py-2 text-sm">
+            <span className="font-semibold text-slate-700">🏆 {o.title}</span>
             <span className="text-slate-400">
               {o.validatedAt ? new Date(o.validatedAt).toLocaleDateString("fr-FR") : ""}
             </span>
