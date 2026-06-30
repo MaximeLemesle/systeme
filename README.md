@@ -1,62 +1,164 @@
 # Système d'évolution
 
-Application web de **pratique délibérée** : choisis un domaine (Code, Réflexion, Course…), laisse une **IA locale** transformer tes envies en objectifs SMART et générer un plan de tâches, puis logge tes sessions pour gagner de l'XP, monter de niveau et progresser vers les 10 000 h de maîtrise.
+README = source de vérité du projet. Les anciens fichiers de cadrage peuvent rester utiles comme historique, mais l'état fonctionnel attendu est celui décrit ici.
 
-- **Front** : React (Vite) + React Router + TanStack Query + Tailwind CSS v4
-- **Back** : Node + Express + Prisma + **SQLite** (zéro infra), Auth JWT, validation Zod
-- **IA** : **100 % locale via [Ollama](https://ollama.com)** (modèle `mistral` par défaut). Aucune clé API, aucune donnée envoyée au cloud.
+Système d'évolution est une application web de pratique délibérée. Un utilisateur suit jusqu'à **3 domaines** en parallèle, par exemple `Code`, `Course à pied`, `Guitare`, puis l'IA l'aide à transformer une intention vague en objectif SMART et en plan de tâches progressif. Les sessions, l'XP, les niveaux et les récompenses sont calculés côté serveur.
 
-Toute la logique d'XP/niveau est calculée **côté serveur** (anti-triche) ; l'IA n'est appelée que depuis le backend.
+## État Produit Actuel
 
----
+- Authentification par compte utilisateur avec JWT.
+- Tableau de bord multi-domaine, limité à 3 domaines par utilisateur.
+- Création, sélection et suppression de domaines.
+- Un objectif actif par domaine dans l'interface.
+- Suggestions d'objectifs SMART par IA selon le domaine choisi.
+- Raffinage IA d'un objectif libre.
+- Génération IA d'un plan de tâches ordonnées.
+- Complétion atomique d'une tâche : session créée, XP calculée, tâche marquée faite et domaine mis à jour dans une seule transaction backend.
+- Validation d'objectif avec gros gain d'XP.
+- Historique des objectifs validés.
+
+## Règles Métier
+
+- Le client n'envoie jamais de montant d'XP.
+- L'XP de session, les niveaux et les bonus sont calculés dans `server/src/services/gamification.js`.
+- La limite de 3 domaines est imposée côté backend sur `POST /domaines`.
+- Les appels IA passent uniquement par le backend.
+- Les sorties IA sont validées avec Zod avant d'être utilisées.
+- Les secrets restent dans `.env`, jamais dans Git.
+
+## Stack
+
+- Frontend : React + Vite + React Router + TanStack Query + Tailwind CSS v4.
+- Backend : Node.js + Express + Prisma + SQLite.
+- Auth : JWT + bcrypt.
+- Validation : Zod.
+- IA : Ollama local par défaut, Mistral API possible en option.
+- Tests backend : `node --test`.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U["Utilisateur"] --> C["Client React"]
+  C -->|"JWT + JSON"| API["API Express"]
+  API --> AUTH["Middleware Auth"]
+  API --> ROUTES["Routes REST"]
+  ROUTES --> PRISMA["Prisma"]
+  PRISMA --> DB["SQLite"]
+  ROUTES --> GAME["Gamification"]
+  ROUTES --> AI["Service IA"]
+  AI --> OLLAMA["Ollama local"]
+  AI -. "optionnel" .-> MISTRAL["Mistral API"]
+```
+
+## Flux Principal
+
+```mermaid
+sequenceDiagram
+  participant UI as Frontend
+  participant API as Backend
+  participant AI as IA
+  participant DB as SQLite
+
+  UI->>API: GET /domaines
+  API->>DB: domaines utilisateur
+  API-->>UI: 0 à 3 domaines
+
+  UI->>API: POST /domaines/:id/objectifs/suggestions
+  API->>AI: domaine + niveau
+  AI-->>API: objectifs SMART validés Zod
+  API-->>UI: suggestions
+
+  UI->>API: POST /domaines/:id/objectifs
+  API->>DB: création objectif
+
+  UI->>API: POST /objectifs/:id/taches/generate
+  API->>AI: objectif + domaine
+  API->>DB: tâches générées
+
+  UI->>API: POST /taches/:id/complete
+  API->>DB: transaction session + tâche + XP domaine
+  API-->>UI: XP gagnée + level up éventuel
+```
+
+## Routes Principales
+
+Toutes les routes sauf `/auth/*` exigent `Authorization: Bearer <jwt>`.
+
+| Méthode | Route | Rôle |
+| --- | --- | --- |
+| `POST` | `/auth/register` | Créer un compte |
+| `POST` | `/auth/login` | Connexion |
+| `GET` | `/domaines` | Liste des domaines du user |
+| `POST` | `/domaines` | Créer un domaine, max 3 |
+| `GET` | `/domaines/:id/progression` | Domaine + objectifs + objectif actif détaillé |
+| `DELETE` | `/domaines/:id` | Supprimer un domaine et ses données |
+| `POST` | `/domaines/:id/objectifs/suggestions` | Suggestions IA |
+| `POST` | `/ai/objectifs/refine` | Raffiner un objectif libre |
+| `POST` | `/domaines/:id/objectifs` | Créer un objectif |
+| `POST` | `/objectifs/:id/taches/generate` | Générer le plan IA |
+| `POST` | `/taches/:id/complete` | Terminer une tâche avec XP atomique |
+| `PATCH` | `/objectifs/:id/validate` | Valider l'objectif |
+| `GET` | `/me/stats` | Stats globales |
 
 ## Prérequis
 
-- Node.js 20.19+ ou 22.12+ (Vite 8 ; `.nvmrc` fourni avec Node 22)
-- [Ollama](https://ollama.com) installé, avec un modèle :
-  ```bash
-  ollama pull mistral
-  ```
-
-## Démarrage
-
-### Démarrage rapide
-
-Depuis le dossier `systeme/` :
-
-```bash
-./start.sh
-```
-
-Arrêter Ollama, le backend et le frontend :
-
-```bash
-./stop.sh
-```
-
-### 1. Lancer Ollama
-
-Installe le modèle local utilisé par défaut :
+- Node.js 20.19+ ou 22.12+.
+- Ollama installé pour les fonctions IA locales.
+- Modèle Ollama installé :
 
 ```bash
 ollama pull mistral
 ```
 
-Lance Ollama :
+Pour des réponses IA plus rapides :
 
 ```bash
-ollama serve
+ollama pull llama3.2:3b
 ```
 
-Arrêter Ollama :
+puis changer `OLLAMA_MODEL` dans `server/.env`.
+
+## Configuration
+
+Backend : `server/.env`
 
 ```bash
-pkill ollama
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="change-me"
+AI_PROVIDER="ollama"
+OLLAMA_URL="http://localhost:11434"
+OLLAMA_MODEL="mistral"
+MISTRAL_API_KEY=""
+PORT=4000
+HOST="127.0.0.1"
 ```
 
-### 3. Installer et lancer le backend
+Frontend : `client/.env`
 
-Dans un nouveau terminal :
+```bash
+VITE_API_URL="http://127.0.0.1:4000"
+```
+
+Le backend valide la configuration au démarrage. En production, `JWT_SECRET` doit être remplacé.
+
+## Démarrage Rapide
+
+Depuis la racine :
+
+```bash
+./start.sh
+```
+
+Arrêt :
+
+```bash
+./stop.sh
+```
+
+## Démarrage Manuel
+
+Backend :
 
 ```bash
 cd server
@@ -66,11 +168,7 @@ npx prisma migrate dev
 npm run dev
 ```
 
-Vérif : `curl http://127.0.0.1:4000/health` → `{"ok":true}`
-
-### 4. Installer et lancer le frontend
-
-Dans un autre terminal :
+Frontend :
 
 ```bash
 cd client
@@ -79,71 +177,55 @@ npm install
 npm run dev
 ```
 
-Ouvre ensuite **http://localhost:5173**, crée un compte, et lance-toi.
+Ouvrir ensuite `http://localhost:5173`.
 
-Si l'inscription affiche que l'API est inaccessible, vérifie que le backend est bien lancé et que `client/.env` contient :
+## Vérifications
 
-```bash
-VITE_API_URL="http://127.0.0.1:4000"
-```
-
-Après une modification de `client/.env`, redémarre `npm run dev` côté frontend.
-
-## Relancer le projet ensuite
-
-Une fois l'installation faite, tu n'as plus besoin de refaire `npm install`, `cp .env.example .env` ou `npx prisma migrate dev` à chaque lancement.
-
-1. Vérifie qu'Ollama tourne déjà, ou lance `ollama serve`.
-2. Lance le backend :
-   ```bash
-   cd server
-   npm run dev
-   ```
-3. Lance le frontend :
-   ```bash
-   cd client
-   npm run dev
-   ```
-
----
-
-## Parcours type
-
-1. **Crée un domaine** (ex : `Code`).
-2. **Nouvel objectif** → l'IA propose des objectifs SMART, ou écris le tien en langage libre (« créer une app mobile dans 1 mois ») et clique **Raffiner (IA)**.
-3. Sur l'objectif, **Générer le plan (IA)** découpe l'objectif en tâches ordonnées.
-4. **Logge une session** (durée + difficulté) → XP calculée par le serveur, montée de niveau animée.
-5. **Valide l'objectif** → gros gain d'XP.
-
----
-
-## ⚡ Vitesse de l'IA
-
-Le modèle `mistral` (7B) tourne **en local** : selon la machine, une réponse IA peut prendre **~30 s à 2 min** (un bandeau de chargement l'indique dans l'UI). C'est normal pour un LLM local.
-
-Pour des réponses **nettement plus rapides**, utilise un modèle plus léger — une seule ligne à changer dans `server/.env` :
-```bash
-ollama pull llama3.2:3b
-# puis dans server/.env :
-OLLAMA_MODEL="llama3.2:3b"
-```
-
----
-
-## Structure
-
-```
-systeme/
-├── server/   # API Express + Prisma (SQLite) + services IA & gamification
-└── client/   # App React (Vite) + Tailwind
-```
-
-Le contrat d'API complet et le modèle de données sont décrits dans [CLAUDE.md](CLAUDE.md).
-
-## Réinitialiser la base
+Backend :
 
 ```bash
 cd server
-rm prisma/dev.db
-npx prisma migrate dev
+npm test
+npx prisma validate
 ```
+
+Frontend :
+
+```bash
+cd client
+npm run lint
+npm run build
+```
+
+Utiliser Node 22 localement si Vite refuse Node 20.9.0.
+
+## Structure
+
+```text
+systeme/
+├── server/
+│   ├── prisma/
+│   └── src/
+│       ├── app.js
+│       ├── index.js
+│       ├── config/
+│       ├── middleware/
+│       ├── routes/
+│       ├── services/
+│       └── validation/
+├── client/
+│   └── src/
+│       ├── api/
+│       ├── components/
+│       ├── lib/
+│       └── pages/
+└── README.md
+```
+
+## Points À Ne Pas Casser
+
+- Ne jamais calculer l'XP côté client.
+- Ne jamais exposer de clé IA côté frontend.
+- Ne pas contourner Zod sur les payloads qui écrivent ou les réponses IA.
+- Ne pas dépasser 3 domaines par utilisateur.
+- Garder `/taches/:id/complete` comme flux principal pour terminer une tâche planifiée.

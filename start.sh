@@ -51,7 +51,7 @@ start_background() {
   echo "    PID $pid, logs : $log_file"
 }
 
-echo "🏃 Démarrage de Run Coach…"
+echo "Démarrage de Système d'évolution…"
 echo
 
 # --- Dépendances & base (premier lancement uniquement) ---

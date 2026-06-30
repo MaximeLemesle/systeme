@@ -16,8 +16,8 @@ export default function Layout() {
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2 font-extrabold text-slate-800">
-            <span className="text-xl">🏃</span>
-            <span>Système d'amélioration</span>
+            <span className="text-xl">🎯</span>
+            <span>Système d'évolution</span>
           </Link>
           <div className="flex items-center gap-3 text-sm">
             {user && <span className="text-slate-500">{user.username}</span>}

@@ -6,12 +6,13 @@ const { findObjectif } = require("../access");
 const { ObjectifUpdateIn, SessionIn } = require("../validation/schemas");
 const ai = require("../services/ai");
 const gam = require("../services/gamification");
+const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
 router.use(auth);
 
 // GET /objectifs/:id — détail + tâches + sessions
-router.get("/:id", async (req, res) => {
+router.get("/:id", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const objectif = await prisma.objectif.findFirst({
     where: { id, domaine: { userId: req.userId } },
@@ -23,10 +24,10 @@ router.get("/:id", async (req, res) => {
   });
   if (!objectif) return res.status(404).json({ error: "Objectif introuvable" });
   res.json(objectif);
-});
+}));
 
 // PUT /objectifs/:id — modifier (ex : currentValue)
-router.put("/:id", async (req, res) => {
+router.put("/:id", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = ObjectifUpdateIn.safeParse(req.body);
   if (!parsed.success) {
@@ -37,20 +38,20 @@ router.put("/:id", async (req, res) => {
   }
   const objectif = await prisma.objectif.update({ where: { id }, data: parsed.data });
   res.json(objectif);
-});
+}));
 
 // DELETE /objectifs/:id — supprimer
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   if (!(await findObjectif(req.userId, id))) {
     return res.status(404).json({ error: "Objectif introuvable" });
   }
   await prisma.objectif.delete({ where: { id } });
   res.json({ ok: true });
-});
+}));
 
 // PATCH /objectifs/:id/validate — valider → gros gain d'XP au domaine
-router.patch("/:id/validate", async (req, res) => {
+router.patch("/:id/validate", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const objectif = await findObjectif(req.userId, id);
   if (!objectif) return res.status(404).json({ error: "Objectif introuvable" });
@@ -84,10 +85,10 @@ router.patch("/:id/validate", async (req, res) => {
     newLevels: next.newLevels,
     domaine: updatedDomaine,
   });
-});
+}));
 
 // POST /objectifs/:id/taches/generate — IA : génère + persiste le plan de tâches
-router.post("/:id/taches/generate", async (req, res) => {
+router.post("/:id/taches/generate", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const objectif = await findObjectif(req.userId, id);
   if (!objectif) return res.status(404).json({ error: "Objectif introuvable" });
@@ -103,9 +104,12 @@ router.post("/:id/taches/generate", async (req, res) => {
     return res.json({ taches: existing, reused: true });
   }
 
+  const domaine = await prisma.domaine.findUnique({ where: { id: objectif.domaineId } });
+
   let seances;
   try {
-    seances = await ai.generateTrainingPlan({
+    seances = await ai.generateTasks({
+      domaine,
       objectif: {
         title: objectif.title,
         metric_label: objectif.metricLabel,
@@ -136,10 +140,10 @@ router.post("/:id/taches/generate", async (req, res) => {
     orderBy: { orderIndex: "asc" },
   });
   res.status(201).json({ taches: created });
-});
+}));
 
 // GET /objectifs/:id/taches — liste des tâches
-router.get("/:id/taches", async (req, res) => {
+router.get("/:id/taches", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   if (!(await findObjectif(req.userId, id))) {
     return res.status(404).json({ error: "Objectif introuvable" });
@@ -149,10 +153,10 @@ router.get("/:id/taches", async (req, res) => {
     orderBy: { orderIndex: "asc" },
   });
   res.json(taches);
-});
+}));
 
 // POST /objectifs/:id/sessions — logger une session → XP calculée SERVEUR
-router.post("/:id/sessions", async (req, res) => {
+router.post("/:id/sessions", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = SessionIn.safeParse(req.body);
   if (!parsed.success) {
@@ -210,10 +214,10 @@ router.post("/:id/sessions", async (req, res) => {
     newLevels: next.newLevels,
     domaine: updatedDomaine,
   });
-});
+}));
 
 // GET /objectifs/:id/sessions — historique
-router.get("/:id/sessions", async (req, res) => {
+router.get("/:id/sessions", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   if (!(await findObjectif(req.userId, id))) {
     return res.status(404).json({ error: "Objectif introuvable" });
@@ -224,6 +228,6 @@ router.get("/:id/sessions", async (req, res) => {
     include: { feedback: true },
   });
   res.json(sessions);
-});
+}));
 
 module.exports = router;

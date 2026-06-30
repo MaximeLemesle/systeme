@@ -4,11 +4,13 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const prisma = require("../prisma");
 const { RegisterIn, LoginIn } = require("../validation/schemas");
+const { env } = require("../config/env");
+const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
 
 function signToken(userId) {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: "7d" });
 }
 
 // Ne jamais renvoyer le hash du mot de passe au client.
@@ -17,7 +19,7 @@ function publicUser(u) {
 }
 
 // POST /auth/register
-router.post("/register", async (req, res) => {
+router.post("/register", asyncHandler(async (req, res) => {
   const parsed = RegisterIn.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0].message });
@@ -36,20 +38,11 @@ router.post("/register", async (req, res) => {
     data: { username, email, passwordHash },
   });
 
-  // Domaine unique "Course à pied" auto-provisionné pour démarrer simplement.
-  await prisma.domaine.create({
-    data: {
-      name: "Course à pied",
-      description: "Ta progression en course",
-      userId: user.id,
-    },
-  });
-
   return res.status(201).json({ user: publicUser(user), token: signToken(user.id) });
-});
+}));
 
 // POST /auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", asyncHandler(async (req, res) => {
   const parsed = LoginIn.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0].message });
@@ -62,6 +55,6 @@ router.post("/login", async (req, res) => {
   }
 
   return res.json({ user: publicUser(user), token: signToken(user.id) });
-});
+}));
 
 module.exports = router;

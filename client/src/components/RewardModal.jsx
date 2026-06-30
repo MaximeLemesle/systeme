@@ -1,4 +1,4 @@
-// Écran de récompense affiché après une séance terminée ou un objectif validé.
+// Écran de récompense affiché après une étape terminée ou un objectif validé.
 import { Button } from "./ui";
 
 export default function RewardModal({ reward, onClose }) {

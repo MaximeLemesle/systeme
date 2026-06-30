@@ -33,8 +33,8 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <div className="mb-5 text-center">
-          <div className="text-4xl">🏃</div>
-          <h1 className="text-xl font-extrabold text-slate-800">Système d'amélioration</h1>
+          <div className="text-4xl">🎯</div>
+          <h1 className="text-xl font-extrabold text-slate-800">Système d'évolution</h1>
           <p className="text-sm text-slate-500">Connecte-toi pour continuer ta progression</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">

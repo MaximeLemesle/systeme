@@ -4,6 +4,14 @@
 const XP_PER_MIN = 2;
 const DIFFICULTY_MULT = { facile: 1.0, moyen: 1.25, difficile: 1.5 };
 const VALIDATION_XP = { facile: 500, moyen: 1000, difficile: 2000 };
+const TASK_CATEGORY_DIFFICULTY = {
+  general: "moyen",
+  footing: "facile",
+  fractionne: "difficile",
+  sortie_longue: "moyen",
+  recuperation: "facile",
+  objectif: "difficile",
+};
 
 // XP d'une session
 function sessionXp({ durationMinutes, difficulty, hasFeedback }) {
@@ -15,6 +23,10 @@ function sessionXp({ durationMinutes, difficulty, hasFeedback }) {
 // XP de validation d'un objectif
 function validationXp(difficulty) {
   return VALIDATION_XP[difficulty] ?? VALIDATION_XP.moyen;
+}
+
+function taskDifficulty(category) {
+  return TASK_CATEGORY_DIFFICULTY[category] || "moyen";
 }
 
 // Seuil du niveau courant
@@ -52,6 +64,7 @@ function masteryPercent(totalMinutes) {
 module.exports = {
   sessionXp,
   validationXp,
+  taskDifficulty,
   xpToNextLevel,
   applyXpToDomaine,
   masteryPercent,

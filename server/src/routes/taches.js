@@ -3,13 +3,97 @@ const express = require("express");
 const prisma = require("../prisma");
 const auth = require("../middleware/auth");
 const { findTache } = require("../access");
-const { TacheUpdateIn } = require("../validation/schemas");
+const { TacheUpdateIn, CompleteTacheIn } = require("../validation/schemas");
+const gam = require("../services/gamification");
+const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
 router.use(auth);
 
+// POST /taches/:id/complete — termine une tâche, logge la session et applique l'XP en une transaction.
+router.post("/:id/complete", asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  const parsed = CompleteTacheIn.safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0].message });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const tache = await tx.tache.findFirst({
+      where: { id, objectif: { domaine: { userId: req.userId } } },
+      include: { objectif: { include: { domaine: true } } },
+    });
+
+    if (!tache) {
+      const err = new Error("Tâche introuvable");
+      err.status = 404;
+      throw err;
+    }
+    if (tache.objectif.status !== "en_cours") {
+      const err = new Error("Impossible de terminer une tâche d'un objectif terminé");
+      err.status = 400;
+      throw err;
+    }
+
+    const updated = await tx.tache.updateMany({
+      where: { id, status: { not: "fait" } },
+      data: { status: "fait", completedAt: new Date() },
+    });
+    if (updated.count === 0) {
+      const err = new Error("Tâche déjà terminée");
+      err.status = 400;
+      throw err;
+    }
+
+    const { durationMinutes, selfRating, focusPoint } = parsed.data;
+    const effectiveDuration = durationMinutes ?? tache.estDurationMin ?? 30;
+    const effectiveDifficulty = gam.taskDifficulty(tache.category);
+    const xpEarned = gam.sessionXp({
+      durationMinutes: effectiveDuration,
+      difficulty: effectiveDifficulty,
+      hasFeedback: false,
+    });
+    const next = gam.applyXpToDomaine(tache.objectif.domaine, xpEarned);
+
+    const session = await tx.session.create({
+      data: {
+        durationMinutes: effectiveDuration,
+        difficulty: effectiveDifficulty,
+        selfRating: selfRating ?? null,
+        focusPoint: focusPoint ?? tache.title,
+        tacheId: id,
+        xpEarned,
+        objectifId: tache.objectifId,
+      },
+    });
+
+    const domaine = await tx.domaine.update({
+      where: { id: tache.objectif.domaineId },
+      data: {
+        level: next.level,
+        totalXp: next.totalXp,
+        xpToNextLevel: next.xpToNextLevel,
+        totalMinutes: tache.objectif.domaine.totalMinutes + effectiveDuration,
+      },
+    });
+
+    const completedTache = await tx.tache.findUnique({ where: { id } });
+
+    return {
+      tache: completedTache,
+      session,
+      xpEarned,
+      leveledUp: next.leveledUp,
+      newLevels: next.newLevels,
+      domaine,
+    };
+  });
+
+  res.status(201).json(result);
+}));
+
 // PATCH /taches/:id — modifier (ex : status "fait")
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = TacheUpdateIn.safeParse(req.body);
   if (!parsed.success) {
@@ -26,6 +110,6 @@ router.patch("/:id", async (req, res) => {
 
   const tache = await prisma.tache.update({ where: { id }, data });
   res.json(tache);
-});
+}));
 
 module.exports = router;

@@ -1,14 +1,14 @@
-// Parcours façon "Candy Crush" : des séances reliées par un chemin, du départ à l'objectif.
-// - séance faite  → pastille colorée avec ✓
-// - séance du jour → pastille blanche entourée, halo pulsé
-// - séance verrouillée → pastille grise
+// Parcours visuel : des étapes reliées par un chemin, du départ à l'objectif.
+// - étape faite  → pastille colorée avec ✓
+// - étape courante → pastille blanche entourée, halo pulsé
+// - étape verrouillée → pastille grise
 // - dernière étape (objectif) → trophée 🏆
 import { categoryMeta } from "../lib/categories";
 
-export default function TrainingPath({ seances, selectedId, onSelect }) {
-  const doneCount = seances.filter((s) => s.status === "fait").length;
-  const currentIndex = seances.findIndex((s) => s.status !== "fait");
-  const total = seances.length;
+export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
+  const doneCount = steps.filter((s) => s.status === "fait").length;
+  const currentIndex = steps.findIndex((s) => s.status !== "fait");
+  const total = steps.length;
 
   return (
     <div>
@@ -17,7 +17,7 @@ export default function TrainingPath({ seances, selectedId, onSelect }) {
         <div className="mb-1 flex items-center justify-between text-sm">
           <span className="font-semibold text-slate-600">Ta progression</span>
           <span className="text-slate-400">
-            {doneCount} / {total} séances
+            {doneCount} / {total} étapes
           </span>
         </div>
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -34,7 +34,7 @@ export default function TrainingPath({ seances, selectedId, onSelect }) {
         <div className="absolute left-1/2 top-4 bottom-4 -translate-x-1/2 border-l-2 border-dashed border-slate-200" />
 
         <div className="relative z-10 flex flex-col gap-5">
-          {seances.map((s, i) => {
+          {steps.map((s, i) => {
             const isDone = s.status === "fait";
             const isCurrent = i === currentIndex;
             const isLocked = currentIndex !== -1 && i > currentIndex;
@@ -78,7 +78,7 @@ export default function TrainingPath({ seances, selectedId, onSelect }) {
                       isCurrent ? "text-emerald-700" : "text-slate-400"
                     }`}
                   >
-                    {isObjectif ? "Objectif" : isCurrent ? "Séance du jour" : `${meta.emoji}`}
+                    {isObjectif ? "Objectif" : isCurrent ? "Étape du jour" : `${meta.emoji}`}
                   </span>
                 </div>
               </div>

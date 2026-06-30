@@ -1,5 +1,5 @@
-// Création d'objectif de course guidée par l'IA :
-//  1. Mini-formulaire : niveau + type d'objectif visé
+// Création d'objectif guidée par l'IA :
+//  1. Choix du niveau
 //  2. « Idées de l'IA » → 3 objectifs SMART proposés    OU    « Mon objectif » → champ libre raffiné par l'IA
 //  3. Choix → création de l'objectif (puis génération du plan sur la page principale)
 import { useState } from "react";
@@ -12,26 +12,19 @@ const NIVEAUX = [
   ["intermédiaire", "Intermédiaire"],
   ["avancé", "Avancé"],
 ];
-const TYPES = [
-  ["endurance", "Endurance — courir plus longtemps"],
-  ["chrono", "Chrono — un temps sur une distance"],
-  ["distance", "Distance — aller plus loin"],
-  ["regularite", "Régularité — courir souvent"],
-];
 const diffColor = { facile: "green", moyen: "amber", difficile: "violet" };
 
-export default function CreateRunningObjectif({ domaineId }) {
+export default function CreateObjectif({ domaine }) {
   const qc = useQueryClient();
   const [niveau, setNiveau] = useState("débutant");
-  const [objectiveType, setObjectiveType] = useState("endurance");
   const [rawInput, setRawInput] = useState("");
   const [refined, setRefined] = useState(null);
 
   const suggestions = useMutation({
     mutationFn: () =>
-      api("/ai/running/suggestions", {
+      api(`/domaines/${domaine.id}/objectifs/suggestions`, {
         method: "POST",
-        body: { niveau, objectiveType },
+        body: { niveau },
         timeoutMs: AI_TIMEOUT_MS,
       }),
   });
@@ -40,15 +33,18 @@ export default function CreateRunningObjectif({ domaineId }) {
     mutationFn: () =>
       api("/ai/objectifs/refine", {
         method: "POST",
-        body: { objectifBrut: rawInput, niveau, objectiveType },
+        body: { objectifBrut: rawInput, domaineId: domaine.id, niveau },
         timeoutMs: AI_TIMEOUT_MS,
       }),
     onSuccess: (data) => setRefined(data),
   });
 
   const create = useMutation({
-    mutationFn: (body) => api(`/domaines/${domaineId}/objectifs`, { method: "POST", body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course"] }),
+    mutationFn: (body) => api(`/domaines/${domaine.id}/objectifs`, { method: "POST", body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["domaines"] });
+      qc.invalidateQueries({ queryKey: ["domaine-progress", domaine.id] });
+    },
   });
 
   function createFromSuggestion(s) {
@@ -60,7 +56,6 @@ export default function CreateRunningObjectif({ domaineId }) {
       difficulty: s.difficulty,
       deadline: s.deadline_suggeree,
       niveau,
-      objectiveType,
       aiRefined: true,
     });
   }
@@ -76,7 +71,6 @@ export default function CreateRunningObjectif({ domaineId }) {
       deadline: refined.deadline,
       rawInput,
       niveau,
-      objectiveType,
       aiRefined: true,
     });
   }
@@ -88,7 +82,7 @@ export default function CreateRunningObjectif({ domaineId }) {
       <div>
         <h2 className="text-lg font-bold text-slate-800">Définis ton objectif 🎯</h2>
         <p className="text-sm text-slate-500">
-          Choisis ton profil, puis laisse l'IA te proposer des idées — ou écris le tien.
+          Domaine : <span className="font-semibold text-slate-700">{domaine.name}</span>. Choisis ton niveau, puis laisse l'IA te proposer des idées — ou écris le tien.
         </p>
       </div>
 
@@ -97,13 +91,6 @@ export default function CreateRunningObjectif({ domaineId }) {
         <Field label="Ton niveau">
           <Select value={niveau} onChange={(e) => setNiveau(e.target.value)}>
             {NIVEAUX.map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Type d'objectif">
-          <Select value={objectiveType} onChange={(e) => setObjectiveType(e.target.value)}>
-            {TYPES.map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
           </Select>
@@ -160,7 +147,7 @@ export default function CreateRunningObjectif({ domaineId }) {
         <h3 className="font-semibold text-slate-700">✍️ Mon objectif</h3>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
-            placeholder="ex : courir 10 km avant la fin de l'été"
+            placeholder="ex : créer une app mobile en 1 mois"
             value={rawInput}
             onChange={(e) => setRawInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && rawInput && refine.mutate()}

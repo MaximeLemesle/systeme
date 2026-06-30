@@ -43,11 +43,11 @@ const RefineOut = z.object({
   faisabilite: z.string(), // courte note réaliste
 });
 
-// Plan d'entraînement de course : séances ordonnées avec un type de séance.
-// .catch("footing") => si le LLM renvoie une catégorie hors liste, on ne casse pas la validation.
+// Plan d'action : étapes ordonnées avec une catégorie optionnelle.
+// Les catégories running restent supportées pour le domaine "Course à pied".
 const TrainingCategory = z
-  .enum(["footing", "fractionne", "sortie_longue", "recuperation", "objectif"])
-  .catch("footing");
+  .enum(["general", "footing", "fractionne", "sortie_longue", "recuperation", "objectif"])
+  .catch("general");
 
 const TrainingPlanOut = z.object({
   seances: z
@@ -62,6 +62,21 @@ const TrainingPlanOut = z.object({
     )
     .min(3)
     .max(12),
+});
+
+const TasksOut = z.object({
+  taches: z
+    .array(
+      z.object({
+        order_index: z.coerce.number().int(),
+        title: z.string().min(2),
+        description: z.string().optional().default(""),
+        category: TrainingCategory.optional().default("general"),
+        est_duration_min: z.coerce.number().int().nullable().optional(),
+      })
+    )
+    .min(3)
+    .max(20),
 });
 
 // ---------- Schémas d'entrée des endpoints qui écrivent ----------
@@ -170,13 +185,37 @@ const FeedbackIn = z.object({
 
 const RefineIn = z.object({
   objectifBrut: RequiredString("L'objectif").min(1, "Décris ton objectif avant de le raffiner"),
+  domaineId: z.number().int().optional().nullable(),
+  domaine: z.string().optional().nullable(),
   niveau: z.string().optional().nullable(),
   objectiveType: z.string().optional().nullable(),
 });
 
-const RunningSuggestIn = z.object({
+const ObjectiveSuggestIn = z.object({
   niveau: z.string().optional().nullable(),
   objectiveType: z.string().optional().nullable(),
+});
+
+const CompleteTacheIn = z.object({
+  durationMinutes: z
+    .number()
+    .int("La durée doit être un nombre entier de minutes")
+    .positive("La durée doit être supérieure à 0")
+    .max(1440, "La durée ne peut pas dépasser 1440 minutes")
+    .optional()
+    .nullable(),
+  selfRating: z
+    .number()
+    .int("L'auto-évaluation doit être un entier")
+    .min(1, "L'auto-évaluation doit être entre 1 et 5")
+    .max(5, "L'auto-évaluation doit être entre 1 et 5")
+    .optional()
+    .nullable(),
+  focusPoint: z
+    .string()
+    .max(255, "Le point travaillé ne peut pas dépasser 255 caractères")
+    .optional()
+    .nullable(),
 });
 
 module.exports = {
@@ -184,14 +223,16 @@ module.exports = {
   SuggestionsOut,
   RefineOut,
   TrainingPlanOut,
+  TasksOut,
   RegisterIn,
   LoginIn,
   DomaineIn,
   ObjectifIn,
   ObjectifUpdateIn,
   TacheUpdateIn,
+  CompleteTacheIn,
   SessionIn,
   FeedbackIn,
   RefineIn,
-  RunningSuggestIn,
+  ObjectiveSuggestIn,
 };

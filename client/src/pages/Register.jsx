@@ -34,9 +34,9 @@ export default function Register() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <div className="mb-5 text-center">
-          <div className="text-4xl">🏃</div>
+          <div className="text-4xl">🎯</div>
           <h1 className="text-xl font-extrabold text-slate-800">Créer un compte</h1>
-          <p className="text-sm text-slate-500">Commence ta progression en course</p>
+          <p className="text-sm text-slate-500">Commence ta progression dans tes domaines clés</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <Field label="Nom d'utilisateur">

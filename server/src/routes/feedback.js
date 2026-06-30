@@ -5,12 +5,13 @@ const auth = require("../middleware/auth");
 const { findSession } = require("../access");
 const { FeedbackIn } = require("../validation/schemas");
 const gam = require("../services/gamification");
+const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
 router.use(auth);
 
 // POST /sessions/:id/feedback — ajoute un feedback et applique le bonus différentiel.
-router.post("/:id/feedback", async (req, res) => {
+router.post("/:id/feedback", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = FeedbackIn.safeParse(req.body);
   if (!parsed.success) {
@@ -57,6 +58,6 @@ router.post("/:id/feedback", async (req, res) => {
     newLevels: next.newLevels,
     domaine: updatedDomaine,
   });
-});
+}));
 
 module.exports = router;

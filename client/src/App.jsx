@@ -3,7 +3,7 @@ import { isAuthed } from "./lib/auth";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import CoursePage from "./pages/CoursePage";
+import Dashboard from "./pages/CoursePage";
 
 function Protected({ children }) {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -21,7 +21,7 @@ export default function App() {
           </Protected>
         }
       >
-        <Route path="/" element={<CoursePage />} />
+        <Route path="/" element={<Dashboard />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

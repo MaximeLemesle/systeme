@@ -1,5 +1,6 @@
-// Métadonnées des types de séance d'entraînement (couleurs, emoji, libellé FR).
+// Métadonnées des types d'étapes (génériques + entraînement course).
 export const CATEGORIES = {
+  general: { label: "Étape", emoji: "✓", node: "bg-emerald-500", badge: "green", difficulty: "moyen" },
   footing: { label: "Footing", emoji: "🏃", node: "bg-sky-500", badge: "sky", difficulty: "facile" },
   fractionne: { label: "Fractionné", emoji: "⚡", node: "bg-amber-500", badge: "amber", difficulty: "difficile" },
   sortie_longue: { label: "Sortie longue", emoji: "🛣️", node: "bg-violet-500", badge: "violet", difficulty: "moyen" },
@@ -8,5 +9,5 @@ export const CATEGORIES = {
 };
 
 export function categoryMeta(category) {
-  return CATEGORIES[category] || CATEGORIES.footing;
+  return CATEGORIES[category] || CATEGORIES.general;
 }
