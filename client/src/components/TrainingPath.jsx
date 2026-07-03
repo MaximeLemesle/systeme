@@ -13,25 +13,36 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
   return (
     <div>
       {/* Progression globale */}
-      <div className="mb-4">
-        <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="font-black text-slate-700">Plan d'action</span>
-          <span className="font-semibold text-slate-400">
+      <div className="mb-4 rounded-lg border-2 border-[#3d2d18]/10 bg-[#fff8e8]/85 p-3">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-black text-[#18212a]">Route de quête</span>
+          <span className="font-black text-[#7d705e]">
             {doneCount} / {total} étapes
           </span>
         </div>
-        <div className="h-3 w-full overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+        <div className="h-4 w-full overflow-hidden rounded-lg border-2 border-[#3d2d18]/15 bg-[#ead9b8] shadow-inner">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#15615f] via-[#356c9f] to-[#d89b2b] transition-all duration-500"
+            className="meter-scan relative h-full overflow-hidden rounded-md bg-gradient-to-r from-[#1f6f5f] via-[#3477a8] to-[#d89b2b] transition-all duration-500 after:absolute after:inset-y-0 after:w-16 after:bg-white/35 after:blur-sm"
             style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }}
           />
         </div>
       </div>
 
       {/* Le chemin */}
-      <div className="relative mx-auto max-w-sm rounded-lg bg-slate-50/70 px-4 py-4">
-        {/* Colonne centrale en pointillés */}
-        <div className="absolute left-1/2 top-6 bottom-6 -translate-x-1/2 border-l-2 border-dashed border-slate-300" />
+      <div className="relative mx-auto max-w-lg overflow-hidden rounded-lg border-2 border-[#3d2d18]/10 bg-[#f8efd9] px-4 py-5">
+        <div className="absolute inset-0 opacity-70" style={{
+          backgroundImage:
+            "linear-gradient(135deg, transparent 0 48%, rgba(31,111,95,.12) 48% 49%, transparent 49% 100%), linear-gradient(45deg, transparent 0 58%, rgba(52,119,168,.12) 58% 59%, transparent 59% 100%)",
+        }} />
+        {/* Route centrale */}
+        <div
+          className="absolute left-1/2 top-8 bottom-8 w-2 -translate-x-1/2 rounded-full border border-[#3d2d18]/10"
+          style={{
+            backgroundImage: "linear-gradient(to bottom, #d89b2b 0 45%, transparent 45% 100%)",
+            backgroundSize: "100% 34px",
+            animation: "route-dash 2.4s linear infinite",
+          }}
+        />
 
         <div className="relative z-10 flex flex-col gap-5">
           {steps.map((s, i) => {
@@ -49,36 +60,35 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
                 ? "justify-start"
                 : "justify-end";
 
-            // Style de la pastille selon l'état.
             let node;
             if (isDone) {
-              node = `${meta.node} text-white shadow-lg shadow-slate-900/15`;
+              node = `${meta.node} border-[#163f36]/20 text-white shadow-lg shadow-emerald-950/20`;
             } else if (isCurrent) {
-              node = "bg-white text-[#15615f] border-4 border-[#15615f] shadow-lg shadow-teal-900/15 pulse-ring";
+              node = "bg-[#fffaf0] text-[#1f6f5f] border-4 border-[#d89b2b] shadow-lg shadow-amber-900/15 pulse-ring";
             } else {
-              node = "bg-slate-100 text-slate-400 border border-slate-200";
+              node = "bg-[#ead9b8] text-[#8a785e] border-2 border-[#3d2d18]/10";
             }
 
             const size = isObjectif ? "h-20 w-20 text-3xl" : "h-16 w-16 text-xl";
 
             return (
               <div key={s.id} className={`flex ${align}`}>
-                <div className="flex flex-col items-center" style={{ width: isObjectif ? "auto" : "40%" }}>
+                <div className="flex flex-col items-center" style={{ width: isObjectif ? "auto" : "42%" }}>
                   <button
                     onClick={() => onSelect(s.id)}
-                    className={`flex items-center justify-center rounded-full font-bold transition-transform hover:scale-105 ${size} ${node} ${
-                      selected ? "ring-4 ring-emerald-200" : ""
+                    className={`flex items-center justify-center rounded-lg font-black transition-transform hover:scale-105 ${size} ${node} ${
+                      selected ? "ring-4 ring-[#d89b2b]/35" : ""
                     }`}
                     title={s.title}
                   >
                     {isObjectif ? "🏆" : isDone ? "✓" : isLocked ? "🔒" : s.orderIndex}
                   </button>
                   <span
-                    className={`mt-1.5 text-center text-xs font-medium ${
-                      isCurrent ? "text-[#15615f]" : "text-slate-400"
+                    className={`mt-1.5 rounded-md bg-[#fffaf0]/85 px-2 py-1 text-center text-xs font-black shadow-sm ${
+                      isCurrent ? "text-[#1f6f5f]" : "text-[#8a785e]"
                     }`}
                   >
-                    {isObjectif ? "Objectif" : isCurrent ? "Étape du jour" : `${meta.emoji}`}
+                    {isObjectif ? "Arrivée" : isCurrent ? "Checkpoint actif" : `${meta.emoji}`}
                   </span>
                 </div>
               </div>

@@ -33,12 +33,16 @@ router.post("/", asyncHandler(async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0].message });
   }
-  const count = await prisma.domaine.count({ where: { userId: req.userId } });
-  if (count >= MAX_DOMAINES_PER_USER) {
-    return res.status(400).json({ error: "Tu peux suivre 3 domaines maximum." });
-  }
-  const domaine = await prisma.domaine.create({
-    data: { ...parsed.data, userId: req.userId },
+  // Comptage + création dans la même transaction : la limite ne peut pas être
+  // contournée par deux requêtes simultanées.
+  const domaine = await prisma.$transaction(async (tx) => {
+    const count = await tx.domaine.count({ where: { userId: req.userId } });
+    if (count >= MAX_DOMAINES_PER_USER) {
+      const err = new Error("Tu peux suivre 3 domaines maximum.");
+      err.status = 400;
+      throw err;
+    }
+    return tx.domaine.create({ data: { ...parsed.data, userId: req.userId } });
   });
   res.status(201).json(domaine);
 }));

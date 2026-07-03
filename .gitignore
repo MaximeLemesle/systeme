@@ -17,3 +17,5 @@ dist/
 logs/
 *.log
 .DS_Store
+TODO.md
+AUDIT.md

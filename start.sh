@@ -34,7 +34,7 @@ install_deps() {
   local dir="$1"
   local label="$2"
   echo "  → Installation des dépendances $label…"
-  ( cd "$dir" && npm install )
+  ( cd "$dir" && npm install --include=dev )
 }
 
 server_deps_ok() {
@@ -118,7 +118,7 @@ fi
 if is_up "$OLLAMA_TAGS"; then
   echo "  ✓ Ollama déjà lancé"
 elif command -v ollama >/dev/null 2>&1; then
-  start_background "Ollama" "ollama" ollama serve
+  start_background "Ollama" "ollama" ollama serve || echo "  ! Ollama n'a pas pu être lancé automatiquement. L'app continue sans IA locale."
 else
   echo "  ✗ Ollama n'est pas installé (https://ollama.com) — l'IA ne fonctionnera pas."
 fi

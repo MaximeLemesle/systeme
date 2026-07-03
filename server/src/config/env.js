@@ -13,6 +13,11 @@ const EnvSchema = z
     PORT: z.coerce.number().int().positive().default(4000),
     HOST: z.string().min(1).default("127.0.0.1"),
     NODE_ENV: z.string().optional().default("development"),
+    // Origines autorisées pour CORS, séparées par des virgules.
+    CORS_ORIGIN: z
+      .string()
+      .default("http://localhost:5173,http://127.0.0.1:5173")
+      .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
   })
   .superRefine((env, ctx) => {
     if (env.AI_PROVIDER === "mistral" && !env.MISTRAL_API_KEY) {

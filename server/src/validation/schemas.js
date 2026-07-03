@@ -49,21 +49,6 @@ const TrainingCategory = z
   .enum(["general", "footing", "fractionne", "sortie_longue", "recuperation", "objectif"])
   .catch("general");
 
-const TrainingPlanOut = z.object({
-  seances: z
-    .array(
-      z.object({
-        order_index: z.coerce.number().int(),
-        title: z.string().min(2),
-        description: z.string().optional().default(""),
-        category: TrainingCategory,
-        est_duration_min: z.coerce.number().int().nullable().optional(),
-      })
-    )
-    .min(3)
-    .max(12),
-});
-
 const TasksOut = z.object({
   taches: z
     .array(
@@ -160,7 +145,7 @@ const SessionIn = z.object({
   durationMinutes: RequiredNumber("La durée")
     .int("La durée doit être un nombre entier de minutes")
     .positive("La durée doit être supérieure à 0")
-    .max(1440, "La durée ne peut pas dépasser 1440 minutes"),
+    .max(240, "La durée ne peut pas dépasser 240 minutes par session"),
   difficulty: Difficulty.default("moyen"),
   selfRating: z
     .number()
@@ -201,7 +186,7 @@ const CompleteTacheIn = z.object({
     .number()
     .int("La durée doit être un nombre entier de minutes")
     .positive("La durée doit être supérieure à 0")
-    .max(1440, "La durée ne peut pas dépasser 1440 minutes")
+    .max(240, "La durée ne peut pas dépasser 240 minutes par session")
     .optional()
     .nullable(),
   selfRating: z
@@ -222,7 +207,6 @@ module.exports = {
   Difficulty,
   SuggestionsOut,
   RefineOut,
-  TrainingPlanOut,
   TasksOut,
   RegisterIn,
   LoginIn,

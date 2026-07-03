@@ -1,9 +1,10 @@
-// Composants UI réutilisables — thème cockpit clair et dense.
+// Composants UI réutilisables — thème aventure / quêtes.
+import { useEffect, useState } from "react";
 
 export function Card({ className = "", children, ...props }) {
   return (
     <div
-      className={`rounded-lg border border-slate-200/80 bg-white/90 p-5 shadow-xl shadow-slate-900/5 backdrop-blur ${className}`}
+      className={`game-panel rounded-lg border-2 border-[#3d2d18]/15 bg-[var(--panel)] p-5 backdrop-blur ${className}`}
       {...props}
     >
       {children}
@@ -14,15 +15,17 @@ export function Card({ className = "", children, ...props }) {
 export function Button({ variant = "primary", className = "", ...props }) {
   const variants = {
     primary:
-      "bg-[#15615f] text-white shadow-lg shadow-teal-900/15 hover:bg-[#0f4f4d] disabled:opacity-50 disabled:cursor-not-allowed",
+      "quest-shine border-b-4 border-[#174d42] bg-[#1f6f5f] text-white shadow-lg shadow-emerald-950/15 hover:bg-[#1a5f52] disabled:border-b-2 disabled:opacity-50 disabled:cursor-not-allowed",
     ghost:
-      "border border-slate-300 bg-white/75 text-slate-700 hover:border-[#15615f]/40 hover:bg-white",
-    success: "bg-[#d89b2b] text-white shadow-lg shadow-amber-900/15 hover:bg-[#c8891f] disabled:opacity-50",
-    danger: "bg-[#b84040] text-white shadow-lg shadow-rose-900/15 hover:bg-[#963535]",
+      "border-2 border-[#3d2d18]/15 bg-[#fff8e8]/85 text-[#46351f] hover:border-[#1f6f5f]/35 hover:bg-white",
+    success:
+      "quest-shine border-b-4 border-[#9b6818] bg-[#d89b2b] text-[#2b2114] shadow-lg shadow-amber-900/15 hover:bg-[#c8891f] disabled:border-b-2 disabled:opacity-50",
+    danger:
+      "border-b-4 border-[#873224] bg-[#d95f45] text-white shadow-lg shadow-rose-900/15 hover:bg-[#c14f38]",
   };
   return (
     <button
-      className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition duration-150 hover:-translate-y-0.5 active:translate-y-0 ${variants[variant]} ${className}`}
+      className={`rounded-lg px-4 py-2.5 text-sm font-black transition duration-150 hover:-translate-y-0.5 active:translate-y-0.5 ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -31,15 +34,15 @@ export function Button({ variant = "primary", className = "", ...props }) {
 export function Field({ label, hint, children }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1 block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</span>
+      <span className="mb-1 block text-xs font-black uppercase tracking-[0.12em] text-[#6c5a3a]">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-[#7d705e]">{hint}</span>}
     </label>
   );
 }
 
 const inputCls =
-  "w-full rounded-lg border border-slate-300/90 bg-white/90 px-3 py-2.5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#15615f] focus:ring-2 focus:ring-[#15615f]/15";
+  "w-full rounded-lg border-2 border-[#3d2d18]/15 bg-[#fffaf0]/95 px-3 py-2.5 text-[#18212a] outline-none transition placeholder:text-[#9a8d79] focus:border-[#1f6f5f] focus:bg-white focus:ring-2 focus:ring-[#1f6f5f]/15";
 
 export function Input(props) {
   return <input {...props} className={`${inputCls} ${props.className || ""}`} />;
@@ -56,21 +59,39 @@ export function Select(props) {
 export function Spinner({ className = "" }) {
   return (
     <span
-      className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-500 ${className}`}
+      className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#e7d8b8] border-t-[#1f6f5f] ${className}`}
     />
   );
 }
 
-// Bandeau de chargement pour les appels IA (lents avec un modèle local).
+// Messages qui tournent pendant la génération IA — l'attente paraît plus courte.
+const AI_TIPS = [
+  "La forge IA assemble tes checkpoints…",
+  "Calibrage de la difficulté…",
+  "Traçage de la route vers l'objectif…",
+  "Derniers ajustements du parchemin…",
+];
+
+// Bandeau de chargement pour les appels IA (modèle local : ~15-30 s).
 export function AiLoader({ label = "L'IA réfléchit…" }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const tip = AI_TIPS[Math.floor(seconds / 4) % AI_TIPS.length];
+
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-[#356c9f]/25 bg-[#356c9f]/10 px-4 py-3 text-sm text-[#244d73]">
+    <div className="game-panel flex items-center gap-3 rounded-lg border-2 border-[#3477a8]/25 bg-[#e9f3fb]/85 px-4 py-3 text-sm text-[#244d73]">
       <Spinner />
-      <div>
-        <div className="font-semibold">{label}</div>
-        <div className="text-xs text-[#356c9f]">
-          Modèle local — cela peut prendre jusqu'à ~1–2 min.
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-black">{label}</span>
+          <span className="shrink-0 rounded-md bg-[#3477a8]/15 px-2 py-0.5 text-xs font-black tabular-nums text-[#285179]">
+            {seconds}s
+          </span>
         </div>
+        <div className="text-xs text-[#356c9f]">{tip}</div>
       </div>
     </div>
   );
@@ -79,7 +100,7 @@ export function AiLoader({ label = "L'IA réfléchit…" }) {
 export function ErrorMsg({ children }) {
   if (!children) return null;
   return (
-    <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+    <div className="rounded-lg border-2 border-[#d95f45]/25 bg-[#fff1ed] px-3 py-2 text-sm font-semibold text-[#a54231]">
       {children}
     </div>
   );
@@ -87,16 +108,16 @@ export function ErrorMsg({ children }) {
 
 export function Badge({ children, color = "slate" }) {
   const colors = {
-    slate: "bg-slate-100 text-slate-600 border-slate-200",
-    green: "bg-[#15615f]/10 text-[#15615f] border-[#15615f]/20",
-    amber: "bg-[#d89b2b]/15 text-[#8b5d12] border-[#d89b2b]/25",
-    sky: "bg-[#356c9f]/15 text-[#285179] border-[#356c9f]/25",
-    violet: "bg-[#7657a8]/15 text-[#5a4380] border-[#7657a8]/25",
-    teal: "bg-[#1d8a83]/15 text-[#14625d] border-[#1d8a83]/25",
-    coral: "bg-[#f26a4f]/15 text-[#a33f2f] border-[#f26a4f]/25",
+    slate: "bg-[#efe4ce] text-[#68543a] border-[#d7c59d]",
+    green: "bg-[#1f6f5f]/12 text-[#1f6f5f] border-[#1f6f5f]/25",
+    amber: "bg-[#d89b2b]/18 text-[#7f5513] border-[#d89b2b]/35",
+    sky: "bg-[#3477a8]/15 text-[#285179] border-[#3477a8]/25",
+    violet: "bg-[#7150a4]/15 text-[#563d7d] border-[#7150a4]/25",
+    teal: "bg-[#4d9f6d]/15 text-[#25634a] border-[#4d9f6d]/25",
+    coral: "bg-[#d95f45]/15 text-[#9a3f30] border-[#d95f45]/25",
   };
   return (
-    <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-bold ${colors[color] || colors.slate}`}>
+    <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-black ${colors[color] || colors.slate}`}>
       {children}
     </span>
   );

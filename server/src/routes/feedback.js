@@ -17,47 +17,48 @@ router.post("/:id/feedback", asyncHandler(async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0].message });
   }
-  const session = await findSession(req.userId, id);
-  if (!session) return res.status(404).json({ error: "Session introuvable" });
+  // Transaction interactive : contrôles + calcul + écritures atomiques
+  // (pas de double feedback ni d'XP perdue en cas de requêtes simultanées).
+  const result = await prisma.$transaction(async (tx) => {
+    const session = await tx.session.findFirst({
+      where: { id, objectif: { domaine: { userId: req.userId } } },
+      include: { feedback: true, objectif: { include: { domaine: true } } },
+    });
+    if (!session) {
+      const err = new Error("Session introuvable");
+      err.status = 404;
+      throw err;
+    }
+    if (session.feedback) {
+      const err = new Error("Feedback déjà présent pour cette session");
+      err.status = 400;
+      throw err;
+    }
 
-  const existing = await prisma.feedback.findUnique({ where: { sessionId: id } });
-  if (existing) {
-    return res.status(400).json({ error: "Feedback déjà présent pour cette session" });
-  }
+    // Bonus différentiel : recalcule l'XP de la session avec feedback, applique l'écart.
+    const newXp = gam.sessionXp({
+      durationMinutes: session.durationMinutes,
+      difficulty: session.difficulty,
+      hasFeedback: true,
+    });
+    const bonus = newXp - session.xpEarned;
+    const next = gam.applyXpToDomaine(session.objectif.domaine, bonus);
 
-  // Bonus différentiel : recalcule l'XP de la session avec feedback, applique l'écart.
-  const newXp = gam.sessionXp({
-    durationMinutes: session.durationMinutes,
-    difficulty: session.difficulty,
-    hasFeedback: true,
-  });
-  const bonus = newXp - session.xpEarned;
-
-  const objectif = await prisma.objectif.findUnique({ where: { id: session.objectifId } });
-  const domaine = await prisma.domaine.findUnique({ where: { id: objectif.domaineId } });
-  const next = gam.applyXpToDomaine(domaine, bonus);
-
-  const [feedback, updatedSession, updatedDomaine] = await prisma.$transaction([
-    prisma.feedback.create({ data: { ...parsed.data, sessionId: id } }),
-    prisma.session.update({ where: { id }, data: { xpEarned: newXp } }),
-    prisma.domaine.update({
-      where: { id: domaine.id },
+    const feedback = await tx.feedback.create({ data: { ...parsed.data, sessionId: id } });
+    const updatedSession = await tx.session.update({ where: { id }, data: { xpEarned: newXp } });
+    const updatedDomaine = await tx.domaine.update({
+      where: { id: session.objectif.domaineId },
       data: {
         level: next.level,
         totalXp: next.totalXp,
         xpToNextLevel: next.xpToNextLevel,
       },
-    }),
-  ]);
+    });
 
-  res.status(201).json({
-    feedback,
-    session: updatedSession,
-    bonusXp: bonus,
-    leveledUp: next.leveledUp,
-    newLevels: next.newLevels,
-    domaine: updatedDomaine,
+    return { feedback, session: updatedSession, bonusXp: bonus, leveledUp: next.leveledUp, newLevels: next.newLevels, domaine: updatedDomaine };
   });
+
+  res.status(201).json(result);
 }));
 
 module.exports = router;

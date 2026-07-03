@@ -55,35 +55,47 @@ router.patch("/:id/validate", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const objectif = await findObjectif(req.userId, id);
   if (!objectif) return res.status(404).json({ error: "Objectif introuvable" });
-  if (objectif.status === "valide") {
-    return res.status(400).json({ error: "Objectif déjà validé" });
+  if (objectif.status !== "en_cours") {
+    return res.status(400).json({ error: "Seul un objectif en cours peut être validé" });
   }
 
   const gained = gam.validationXp(objectif.difficulty);
-  const domaine = await prisma.domaine.findUnique({ where: { id: objectif.domaineId } });
-  const next = gam.applyXpToDomaine(domaine, gained);
 
-  const [updatedObjectif, updatedDomaine] = await prisma.$transaction([
-    prisma.objectif.update({
-      where: { id },
+  // Transaction interactive : la double validation simultanée est bloquée par le
+  // updateMany conditionnel, et l'XP est lue/écrite atomiquement.
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.objectif.updateMany({
+      where: { id, status: "en_cours" },
       data: { status: "valide", validatedAt: new Date() },
-    }),
-    prisma.domaine.update({
+    });
+    if (updated.count === 0) {
+      const err = new Error("Seul un objectif en cours peut être validé");
+      err.status = 400;
+      throw err;
+    }
+
+    const domaine = await tx.domaine.findUnique({ where: { id: objectif.domaineId } });
+    const next = gam.applyXpToDomaine(domaine, gained);
+
+    const updatedDomaine = await tx.domaine.update({
       where: { id: domaine.id },
       data: {
         level: next.level,
         totalXp: next.totalXp,
         xpToNextLevel: next.xpToNextLevel,
       },
-    }),
-  ]);
+    });
+    const updatedObjectif = await tx.objectif.findUnique({ where: { id } });
+
+    return { objectif: updatedObjectif, domaine: updatedDomaine, next };
+  });
 
   res.json({
-    objectif: updatedObjectif,
+    objectif: result.objectif,
     xpEarned: gained,
-    leveledUp: next.leveledUp,
-    newLevels: next.newLevels,
-    domaine: updatedDomaine,
+    leveledUp: result.next.leveledUp,
+    newLevels: result.next.newLevels,
+    domaine: result.domaine,
   });
 }));
 
@@ -169,34 +181,54 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
   }
 
   const { durationMinutes, difficulty, selfRating, focusPoint, tacheId } = parsed.data;
-  if (tacheId) {
-    const tache = await prisma.tache.findFirst({
-      where: { id: tacheId, objectifId: id, objectif: { domaine: { userId: req.userId } } },
-    });
-    if (!tache) {
-      return res.status(400).json({ error: "Tâche liée invalide pour cet objectif" });
+
+  // Transaction interactive : lecture + calcul + écritures atomiques (pas d'XP perdue en concurrence).
+  const result = await prisma.$transaction(async (tx) => {
+    // Revérifie le statut DANS la transaction (l'objectif peut avoir été validé entre-temps).
+    const stillActive = await tx.objectif.findFirst({ where: { id, status: "en_cours" } });
+    if (!stillActive) {
+      const err = new Error("Impossible de logger une session sur un objectif terminé");
+      err.status = 400;
+      throw err;
     }
-  }
 
-  // Le serveur calcule l'XP — le client n'envoie JAMAIS de montant d'XP.
-  const xpEarned = gam.sessionXp({ durationMinutes, difficulty, hasFeedback: false });
+    // Anti-triche : si la session est liée à une tâche, la difficulté vient de la
+    // catégorie de la tâche (comme /taches/:id/complete), pas du client.
+    let effectiveDifficulty = difficulty;
+    if (tacheId) {
+      const tache = await tx.tache.findFirst({
+        where: { id: tacheId, objectifId: id, objectif: { domaine: { userId: req.userId } } },
+      });
+      if (!tache) {
+        const err = new Error("Tâche liée invalide pour cet objectif");
+        err.status = 400;
+        throw err;
+      }
+      effectiveDifficulty = gam.taskDifficulty(tache.category);
+    }
 
-  const domaine = await prisma.domaine.findUnique({ where: { id: objectif.domaineId } });
-  const next = gam.applyXpToDomaine(domaine, xpEarned);
+    // Le serveur calcule l'XP — le client n'envoie JAMAIS de montant d'XP.
+    const xpEarned = gam.sessionXp({
+      durationMinutes,
+      difficulty: effectiveDifficulty,
+      hasFeedback: false,
+    });
 
-  const [session, updatedDomaine] = await prisma.$transaction([
-    prisma.session.create({
+    const domaine = await tx.domaine.findUnique({ where: { id: objectif.domaineId } });
+    const next = gam.applyXpToDomaine(domaine, xpEarned);
+
+    const session = await tx.session.create({
       data: {
         durationMinutes,
-        difficulty,
+        difficulty: effectiveDifficulty,
         selfRating: selfRating ?? null,
         focusPoint: focusPoint ?? null,
         tacheId: tacheId ?? null,
         xpEarned,
         objectifId: id,
       },
-    }),
-    prisma.domaine.update({
+    });
+    const updatedDomaine = await tx.domaine.update({
       where: { id: domaine.id },
       data: {
         level: next.level,
@@ -204,16 +236,12 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
         xpToNextLevel: next.xpToNextLevel,
         totalMinutes: domaine.totalMinutes + durationMinutes,
       },
-    }),
-  ]);
+    });
 
-  res.status(201).json({
-    session,
-    xpEarned,
-    leveledUp: next.leveledUp,
-    newLevels: next.newLevels,
-    domaine: updatedDomaine,
+    return { session, xpEarned, leveledUp: next.leveledUp, newLevels: next.newLevels, domaine: updatedDomaine };
   });
+
+  res.status(201).json(result);
 }));
 
 // GET /objectifs/:id/sessions — historique

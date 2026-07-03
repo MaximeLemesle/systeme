@@ -1,4 +1,4 @@
-// Routes /me : stats agrégées. /me/course reste en compatibilité ancienne UI.
+// Routes /me : stats agrégées de l'utilisateur.
 const express = require("express");
 const prisma = require("../prisma");
 const auth = require("../middleware/auth");
@@ -22,44 +22,6 @@ router.get("/stats", asyncHandler(async (req, res) => {
     cumulatedLevels: totalLevels,
     masteryPercent: Math.round(masteryPercent(totalMinutes) * 100) / 100,
   });
-}));
-
-// GET /me/course — compatibilité : renvoie le domaine "Course à pied" s'il existe, sinon le premier.
-router.get("/course", asyncHandler(async (req, res) => {
-    // Token valide mais utilisateur absent (session obsolète) → 401 propre, pas de crash.
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (!user) {
-      return res.status(401).json({ error: "Session expirée, reconnecte-toi." });
-    }
-
-    const domaine =
-      (await prisma.domaine.findFirst({
-        where: { userId: req.userId, name: "Course à pied" },
-      })) ||
-      (await prisma.domaine.findFirst({
-        where: { userId: req.userId },
-        orderBy: { createdAt: "asc" },
-      }));
-
-    if (!domaine) {
-      return res.json({ domaine: null, objectifs: [], objectifActif: null });
-    }
-
-    const objectifs = await prisma.objectif.findMany({
-      where: { domaineId: domaine.id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const objectifActif = await prisma.objectif.findFirst({
-      where: { domaineId: domaine.id, status: "en_cours" },
-      orderBy: { createdAt: "desc" },
-      include: {
-        taches: { orderBy: { orderIndex: "asc" } },
-        sessions: { orderBy: { createdAt: "desc" }, include: { feedback: true } },
-      },
-    });
-
-    res.json({ domaine, objectifs, objectifActif });
 }));
 
 module.exports = router;

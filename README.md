@@ -105,19 +105,13 @@ Toutes les routes sauf `/auth/*` exigent `Authorization: Bearer <jwt>`.
 
 - Node.js 20.19+ ou 22.12+.
 - Ollama installé pour les fonctions IA locales.
-- Modèle Ollama installé :
-
-```bash
-ollama pull mistral
-```
-
-Pour des réponses IA plus rapides :
+- Modèle Ollama installé (rapide, ~15-30 s par réponse) :
 
 ```bash
 ollama pull llama3.2:3b
 ```
 
-puis changer `OLLAMA_MODEL` dans `server/.env`.
+Alternative plus qualitative mais 4-6× plus lente : `ollama pull mistral` puis changer `OLLAMA_MODEL` dans `server/.env`. Le modèle est préchargé au démarrage du backend pour éviter l'attente du premier appel.
 
 ## Configuration
 
@@ -128,7 +122,7 @@ DATABASE_URL="file:./dev.db"
 JWT_SECRET="change-me"
 AI_PROVIDER="ollama"
 OLLAMA_URL="http://localhost:11434"
-OLLAMA_MODEL="mistral"
+OLLAMA_MODEL="llama3.2:3b"
 MISTRAL_API_KEY=""
 PORT=4000
 HOST="127.0.0.1"

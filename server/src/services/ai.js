@@ -5,12 +5,15 @@ const { SuggestionsOut, RefineOut, TasksOut } = require("../validation/schemas")
 const { env } = require("../config/env");
 
 const PROVIDER = env.AI_PROVIDER;
+// Un LLM local peut être lent, mais au-delà on abandonne pour ne pas laisser la requête pendue.
+const LLM_TIMEOUT_MS = 150_000;
 
 // Appel LLM générique renvoyant un objet JSON parsé.
 async function callLlmJson(system, user) {
   if (PROVIDER === "ollama") {
     const res = await fetch(`${env.OLLAMA_URL}/api/chat`, {
       method: "POST",
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: env.OLLAMA_MODEL,
@@ -35,6 +38,7 @@ async function callLlmJson(system, user) {
   // Mistral cloud (fallback optionnel)
   const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${env.MISTRAL_API_KEY}`,
@@ -131,4 +135,27 @@ Format STRICT : {"taches":[{"order_index","title","description","category","est_
   return (await generateValidated(system, user, TasksOut)).taches;
 }
 
-module.exports = { suggestObjectives, refineObjective, generateTasks };
+// Précharge le modèle en mémoire (appelé au boot) : le premier appel IA d'un
+// utilisateur n'attend plus le chargement à froid (~5-20 s selon le modèle).
+async function warmupLlm() {
+  if (PROVIDER !== "ollama") return;
+  try {
+    await fetch(`${env.OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      signal: AbortSignal.timeout(60_000),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: env.OLLAMA_MODEL,
+        stream: false,
+        keep_alive: "30m",
+        options: { num_predict: 1 },
+        messages: [{ role: "user", content: "ok" }],
+      }),
+    });
+    console.log(`IA préchargée (${env.OLLAMA_MODEL})`);
+  } catch {
+    console.warn("IA non préchargée (Ollama indisponible) — elle chargera au premier appel.");
+  }
+}
+
+module.exports = { suggestObjectives, refineObjective, generateTasks, warmupLlm };

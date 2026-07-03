@@ -12,6 +12,8 @@ const displayHost = HOST === "0.0.0.0" ? "localhost" : HOST;
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`API démarrée sur http://${displayHost}:${PORT}`);
+  // Précharge le modèle IA en arrière-plan (non bloquant).
+  require("./services/ai").warmupLlm();
 });
 
 server.on("error", (err) => {
