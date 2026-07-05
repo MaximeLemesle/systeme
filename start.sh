@@ -138,8 +138,10 @@ else
 fi
 
 # --- Attente que back + front répondent ---
-printf "  Attente des services"
-for _ in $(seq 1 40); do
+# Au-delà de 30s, quelque chose ne va pas : on coupe et on affiche un diagnostic.
+WAIT_SECONDS=30
+printf "  Attente des services (jusqu'à %ss)" "$WAIT_SECONDS"
+for i in $(seq 1 "$WAIT_SECONDS"); do
   if is_up "$BACK_HEALTH" && is_up "$FRONT_URL"; then break; fi
   printf "."
   sleep 1
@@ -162,11 +164,25 @@ is_up "$FRONT_URL" && frontend_ok=1
 echo
 
 if [ "$backend_ok" -ne 1 ] || [ "$frontend_ok" -ne 1 ]; then
-  echo "Le projet n'est pas prêt : backend ou frontend indisponible."
-  echo "Consulte les logs :"
-  [ "$backend_ok" -ne 1 ] && echo "  tail -n 80 logs/backend.log"
-  [ "$frontend_ok" -ne 1 ] && echo "  tail -n 80 logs/frontend.log"
-  echo "Arrêt : ./stop.sh"
+  echo "✗ Échec du démarrage : backend et/ou frontend ne répondent pas après ${WAIT_SECONDS}s."
+  # Logs vides + process toujours vivant = pas un crash, juste très lent (RAM/swap saturés).
+  backend_pid="$(read_pid logs/backend.pid || true)"
+  frontend_pid="$(read_pid logs/frontend.pid || true)"
+  if { [ "$backend_ok" -ne 1 ] && pid_is_running "$backend_pid" && [ ! -s logs/backend.log ]; } ||
+     { [ "$frontend_ok" -ne 1 ] && pid_is_running "$frontend_pid" && [ ! -s logs/frontend.log ]; }; then
+    echo
+    echo "Le(s) process tourne(nt) toujours mais n'a/ont rien écrit : ça ressemble à une machine"
+    echo "sous forte pression mémoire (swap élevé) plutôt qu'à un plantage. Vérifie :"
+    echo "  sysctl vm.swapusage"
+    echo "Si le swap est presque plein, ferme des applications (ou redémarre le Mac) puis relance ./start.sh"
+  else
+    echo "Consulte les logs :"
+    [ "$backend_ok" -ne 1 ] && echo "  tail -n 80 logs/backend.log"
+    [ "$frontend_ok" -ne 1 ] && echo "  tail -n 80 logs/frontend.log"
+  fi
+  echo
+  echo "Arrêt automatique des services lancés…"
+  ./stop.sh || true
   exit 1
 fi
 
