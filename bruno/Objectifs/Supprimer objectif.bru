@@ -1,0 +1,11 @@
+meta {
+  name: Supprimer objectif
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/objectifs/{{objectifId}}
+  body: none
+  auth: inherit
+}

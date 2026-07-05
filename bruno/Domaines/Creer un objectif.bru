@@ -1,0 +1,39 @@
+meta {
+  name: Creer un objectif
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/domaines/{{domaineId}}/objectifs
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "Développer & publier une app mobile React Native en 30 jours",
+    "description": null,
+    "rawInput": "créer une app mobile dans 1 mois",
+    "metricLabel": "app publiée",
+    "unit": null,
+    "startValue": 0,
+    "targetValue": 1,
+    "currentValue": 0,
+    "difficulty": "difficile",
+    "niveau": "débutant",
+    "objectiveType": null,
+    "deadline": "2026-08-05",
+    "aiRefined": true
+  }
+}
+
+script:post-response {
+  if (res.getStatus() < 300 && res.getBody() && res.getBody().id) {
+    bru.setEnvVar("objectifId", res.getBody().id);
+  }
+}

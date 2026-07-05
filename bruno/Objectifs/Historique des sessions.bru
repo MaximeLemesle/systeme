@@ -1,0 +1,11 @@
+meta {
+  name: Historique des sessions
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/objectifs/{{objectifId}}/sessions
+  body: none
+  auth: inherit
+}

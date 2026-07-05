@@ -1,0 +1,32 @@
+meta {
+  name: Logger une session
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/objectifs/{{objectifId}}/sessions
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "durationMinutes": 45,
+    "difficulty": "moyen",
+    "selfRating": 4,
+    "focusPoint": "Mise en place du projet",
+    "tacheId": null
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (res.getStatus() < 300 && body && body.session && body.session.id) {
+    bru.setEnvVar("sessionId", body.session.id);
+  }
+}

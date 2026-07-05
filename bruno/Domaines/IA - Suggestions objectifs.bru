@@ -1,0 +1,22 @@
+meta {
+  name: IA - Suggestions objectifs
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/domaines/{{domaineId}}/objectifs/suggestions
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "niveau": "débutant",
+    "objectiveType": null
+  }
+}

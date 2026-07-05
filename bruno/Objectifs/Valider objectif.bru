@@ -1,0 +1,11 @@
+meta {
+  name: Valider objectif
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/objectifs/{{objectifId}}/validate
+  body: none
+  auth: inherit
+}

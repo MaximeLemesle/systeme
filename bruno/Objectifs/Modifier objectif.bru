@@ -1,0 +1,21 @@
+meta {
+  name: Modifier objectif
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/objectifs/{{objectifId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "currentValue": 1
+  }
+}

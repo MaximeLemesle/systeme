@@ -1,0 +1,18 @@
+meta {
+  name: IA - Generer les taches
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/objectifs/{{objectifId}}/taches/generate
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (res.getStatus() < 300 && body && Array.isArray(body.taches) && body.taches.length) {
+    bru.setEnvVar("tacheId", body.taches[0].id);
+  }
+}

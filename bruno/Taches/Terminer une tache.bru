@@ -1,0 +1,23 @@
+meta {
+  name: Terminer une tache
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/taches/{{tacheId}}/complete
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "durationMinutes": 40,
+    "selfRating": 4,
+    "focusPoint": null
+  }
+}

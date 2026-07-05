@@ -1,0 +1,23 @@
+meta {
+  name: Ajouter un feedback
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/sessions/{{sessionId}}/feedback
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "notes": "Bonne session, écran de login terminé",
+    "mediaUrl": null,
+    "correction": null
+  }
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Creer un domaine
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/domaines
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Code",
+    "description": "Devenir dev mobile"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() < 300 && res.getBody() && res.getBody().id) {
+    bru.setEnvVar("domaineId", res.getBody().id);
+  }
+}

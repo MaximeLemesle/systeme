@@ -1,0 +1,26 @@
+docs {
+  # Système d'évolution — API
+
+  Collection Bruno de l'API backend (Express + Prisma).
+
+  ## Démarrage
+  1. Lance le backend : `./start.sh` (API sur http://127.0.0.1:4000).
+  2. Sélectionne l'environnement **Local** en haut à droite.
+  3. Exécute **Auth → Register** (ou **Login**) : le token JWT est stocké
+     automatiquement dans la variable d'environnement `token` et réutilisé
+     par toutes les autres requêtes.
+  4. Les identifiants de ressources (`domaineId`, `objectifId`, `tacheId`,
+     `sessionId`) sont des variables d'environnement remplies automatiquement
+     après une création, ou modifiables à la main.
+
+  Toutes les routes sauf `/auth/*` et `/health` exigent l'en-tête
+  `Authorization: Bearer <token>` (géré ici par l'auth de collection).
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

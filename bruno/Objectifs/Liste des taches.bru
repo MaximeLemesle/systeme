@@ -1,0 +1,11 @@
+meta {
+  name: Liste des taches
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/objectifs/{{objectifId}}/taches
+  body: none
+  auth: inherit
+}
