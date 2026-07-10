@@ -16,7 +16,7 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
       {/* Progression globale */}
       <div className="mb-4 rounded-lg border-2 border-[#3d2d18]/10 bg-[#fff8e8]/85 p-3">
         <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-black text-[#18212a]">Route de quête</span>
+          <span className="font-black text-[#18212a]">Parcours d'entraînement</span>
           <span className="font-black text-[#7d705e]">
             {doneCount} / {total} séances
           </span>
@@ -98,7 +98,7 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
                         isCurrent ? "text-[#1f6f5f]" : "text-[#8a785e]"
                       }`}
                     >
-                      {isObjectif ? "Arrivée" : isCurrent ? "Checkpoint actif" : `${meta.emoji}`}
+                      {isObjectif ? "Arrivée" : isCurrent ? "Séance du jour" : `${meta.emoji}`}
                     </span>
                   </div>
                 </div>

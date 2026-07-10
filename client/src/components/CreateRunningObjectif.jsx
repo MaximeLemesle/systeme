@@ -50,7 +50,7 @@ export default function CreateObjectif({ domaine }) {
   return (
     <Card className="space-y-6 border-[#3477a8]/20 bg-[#fffaf0]/95">
       <div>
-        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#d95f45]">Nouvelle quête</span>
+        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#d95f45]">Nouvel objectif</span>
         <h2 className="mt-1 text-2xl font-black text-[#18212a]">Choisis ta prochaine cible</h2>
         <p className="text-sm font-medium text-[#7d705e]">
           Décris ton objectif de course, le coach affine avec toi puis construit ton plan.
@@ -132,7 +132,7 @@ function IntakeChat({ niveau, onProposal, creating }) {
       {messages.length === 0 ? (
         <p className="text-sm font-medium text-[#6c5a3a]">
           Décris ton objectif de course : le coach te posera quelques questions (temps cible ou juste
-          finir une distance, échéance, fréquence) puis te proposera une quête prête à lancer.
+          finir une distance, échéance, fréquence) puis te proposera un objectif prêt à lancer.
         </p>
       ) : (
         <div className="space-y-2">
@@ -175,7 +175,7 @@ function IntakeChat({ niveau, onProposal, creating }) {
             onClick={() => onProposal(proposal, firstMessage)}
             disabled={creating}
           >
-            {creating ? "Création…" : "Lancer cette quête"}
+            {creating ? "Création…" : "Lancer cet objectif"}
           </Button>
         </div>
       )}

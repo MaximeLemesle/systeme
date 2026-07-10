@@ -91,7 +91,7 @@ export default function Dashboard() {
                 queryKey: ["domaine-progress", activeDomainId],
             });
             setReward({
-                title: "Checkpoint débloqué !",
+                title: "Séance validée !",
                 xpEarned: res.xpEarned,
                 leveledUp: res.leveledUp,
                 newLevels: res.newLevels,
@@ -110,7 +110,7 @@ export default function Dashboard() {
             });
             setSelectedId(null);
             setReward({
-                title: "Quête accomplie !",
+                title: "Objectif accompli !",
                 xpEarned: res.xpEarned,
                 leveledUp: res.leveledUp,
                 newLevels: res.newLevels,
@@ -234,7 +234,7 @@ export default function Dashboard() {
                                                 diffColor[objectif.difficulty]
                                             }
                                         >
-                                            Quête {objectif.difficulty}
+                                            Objectif {objectif.difficulty}
                                         </Badge>
                                         <Badge>
                                             {objectif.archetype === "chrono"
@@ -246,7 +246,7 @@ export default function Dashboard() {
                                         )}
                                     </div>
                                     <span className="rounded-lg border-2 border-[#d89b2b]/30 bg-[#fff3cf] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[#8b5d12]">
-                                        Quête active
+                                        Objectif en cours
                                     </span>
                                 </div>
                                 <h2 className="text-2xl font-black leading-tight text-[#18212a]">
@@ -291,7 +291,7 @@ export default function Dashboard() {
                                 )}
                                 {targetReached && (
                                     <div className="animate-pop rounded-lg border-2 border-[#1f6f5f]/30 bg-[#1f6f5f]/15 p-3 text-center font-black text-[#1f6f5f]">
-                                        🎯 Objectif atteint ! Valide ta quête
+                                        🎯 Objectif atteint ! Valide-le
                                         pour récupérer ta récompense.
                                     </div>
                                 )}
@@ -301,9 +301,9 @@ export default function Dashboard() {
                             {taches.length === 0 && (
                                 <Card className="space-y-4 border-dashed border-[#3477a8]/35 bg-[#e9f3fb]/85 text-center">
                                     <p className="font-semibold text-[#31526d]">
-                                        La route de quête n'est pas encore
-                                        tracée. Le coach peut générer les
-                                        checkpoints jusqu'à l'objectif.
+                                        Le plan d'entraînement n'est pas encore
+                                        tracé. Le coach peut générer les
+                                        séances jusqu'à l'objectif.
                                     </p>
                                     <Button
                                         onClick={() => generatePlan.mutate()}
@@ -373,7 +373,7 @@ export default function Dashboard() {
                                                 ? "…"
                                                 : allDone || targetReached
                                                   ? "Réclamer la récompense finale"
-                                                  : "Terminer la quête maintenant"}
+                                                  : "Valider l'objectif maintenant"}
                                         </Button>
                                         {validate.isError && (
                                             <ErrorMsg>
@@ -406,7 +406,7 @@ function MissionHeader({ level, totalHours, objectifsTermines }) {
                         Chaque séance te rapproche de ton objectif.
                     </h1>
                     <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
-                        Avance sur les checkpoints, gagne de l'XP et fais
+                        Avance séance après séance, gagne de l'XP et fais
                         monter ton niveau par la pratique.
                     </p>
                 </div>
@@ -452,7 +452,7 @@ function StatTile({ icon, label, value, tone }) {
 // Guide d'avancement : les 3 étapes du cycle de jeu, avec l'étape courante mise en avant.
 function QuestStepper({ hasObjectif, hasPlan, allDone }) {
     const steps = [
-        { icon: "★", label: "Définis ta quête", done: hasObjectif },
+        { icon: "★", label: "Définis ton objectif", done: hasObjectif },
         { icon: "🗺", label: "Trace la route", done: hasPlan },
         {
             icon: "🏆",
@@ -543,7 +543,7 @@ function SeanceDetail({ seance, isCurrent, isDone, onComplete, pending }) {
                             ≈ {seance.estDurationMin} min
                         </span>
                     )}
-                    {isDone && <Badge color="green">Checkpoint validé</Badge>}
+                    {isDone && <Badge color="green">Séance faite</Badge>}
                 </div>
                 <span className="rounded-md border border-[#3d2d18]/10 bg-white/70 px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#6c5a3a]">
                     Étape {seance.orderIndex}
@@ -564,7 +564,7 @@ function SeanceDetail({ seance, isCurrent, isDone, onComplete, pending }) {
             <div className="mt-3">
                 {isDone ? (
                     <p className="text-sm font-black text-[#1f6f5f]">
-                        XP déjà gagnée sur ce checkpoint.
+                        XP déjà gagnée sur cette séance.
                     </p>
                 ) : isCurrent ? (
                     <div className="space-y-3">
@@ -605,12 +605,12 @@ function SeanceDetail({ seance, isCurrent, isDone, onComplete, pending }) {
                         <Button onClick={submit} disabled={pending}>
                             {pending
                                 ? "Enregistrement…"
-                                : "Valider ce checkpoint"}
+                                : "Valider cette séance"}
                         </Button>
                     </div>
                 ) : (
                     <p className="text-sm font-bold text-[#9a8d79]">
-                        Checkpoint verrouillé jusqu'aux étapes précédentes.
+                        Séance verrouillée jusqu'aux étapes précédentes.
                     </p>
                 )}
             </div>
