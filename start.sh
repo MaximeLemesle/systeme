@@ -93,7 +93,7 @@ start_background() {
   fi
 }
 
-echo "Démarrage de Système d'évolution…"
+echo "Démarrage de Running Club…"
 echo
 
 # --- Dépendances & base (premier lancement uniquement) ---
@@ -190,6 +190,6 @@ if [ "$ollama_ok" -ne 1 ]; then
   echo "IA locale indisponible : l'app démarre, mais les fonctions IA échoueront tant qu'Ollama ne tourne pas."
 fi
 
-echo "👉 Ouvre http://127.0.0.1:5173"
+echo "👉 Running Club est disponible sur http://127.0.0.1:5173"
 echo "   Si ton navigateur préfère localhost, http://localhost:5173 doit aussi fonctionner."
 echo "   Logs : tail -f logs/*.log     Arrêt : ./stop.sh"
