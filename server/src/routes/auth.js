@@ -9,13 +9,14 @@ const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
 
-function signToken(userId) {
-  return jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: "7d" });
+// Le rôle voyage dans le JWT : pas de requête DB dans le middleware d'autorisation.
+function signToken(user) {
+  return jwt.sign({ userId: user.id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
 }
 
 // Ne jamais renvoyer le hash du mot de passe au client.
 function publicUser(u) {
-  return { id: u.id, username: u.username, email: u.email, createdAt: u.createdAt };
+  return { id: u.id, username: u.username, email: u.email, role: u.role, createdAt: u.createdAt };
 }
 
 // POST /auth/register
@@ -44,7 +45,7 @@ router.post("/register", asyncHandler(async (req, res) => {
     },
   });
 
-  return res.status(201).json({ user: publicUser(user), token: signToken(user.id) });
+  return res.status(201).json({ user: publicUser(user), token: signToken(user) });
 }));
 
 // POST /auth/login
@@ -60,7 +61,7 @@ router.post("/login", asyncHandler(async (req, res) => {
     return res.status(401).json({ error: "Identifiants invalides" });
   }
 
-  return res.json({ user: publicUser(user), token: signToken(user.id) });
+  return res.json({ user: publicUser(user), token: signToken(user) });
 }));
 
 module.exports = router;

@@ -12,6 +12,7 @@ model User {
   username     String    @unique
   email        String    @unique
   passwordHash String    @map("password_hash")
+  role         String    @default("user") // user | admin — jamais accepté depuis le client, seedé côté serveur
   createdAt    DateTime  @default(now()) @map("created_at")
   domaines     Domaine[]
 

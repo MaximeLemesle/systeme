@@ -12,6 +12,7 @@ function auth(req, res, next) {
   try {
     const payload = jwt.verify(token, env.JWT_SECRET);
     req.userId = payload.userId;
+    req.userRole = payload.role || "user"; // tokens émis avant l'ajout des rôles = user
     next();
   } catch {
     return res.status(401).json({ error: "Token invalide" });
