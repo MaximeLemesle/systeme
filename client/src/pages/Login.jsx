@@ -34,16 +34,16 @@ export default function Login() {
       <div className="grid w-full max-w-5xl gap-5 md:grid-cols-[1fr_420px]">
         <section className="game-panel hidden overflow-hidden rounded-lg border-2 border-[#3d2d18]/15 bg-[#172126] p-7 text-white md:block">
           <div className="mb-10 inline-flex rounded-md border border-white/15 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-[#f0c66b]">
-            Camp de progression
+            Running Club
           </div>
           <h1 className="max-w-lg text-4xl font-black leading-tight">
-            Reprends ta partie et avance sur tes quêtes.
+            Prépare ton prochain objectif de course.
           </h1>
           <div className="mt-8 grid gap-3">
             {[
-              ["01", "Choisir un domaine"],
-              ["02", "Suivre la route IA"],
-              ["03", "Gagner de l'XP"],
+              ["01", "Définis ton objectif"],
+              ["02", "Suis ton plan personnalisé"],
+              ["03", "Gagne de l'XP à chaque séance"],
             ].map(([step, label]) => (
               <div key={step} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/10 px-3 py-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#d89b2b] font-black text-[#2b2114]">
@@ -60,8 +60,8 @@ export default function Login() {
             <div className="quest-shine mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-lg border-b-4 border-[#174d42] bg-[#1f6f5f] text-sm font-black text-white shadow-lg shadow-emerald-950/15">
               XP
             </div>
-            <h1 className="text-2xl font-black text-[#18212a]">Système d'évolution</h1>
-            <p className="text-sm font-medium text-[#7d705e]">Connexion au journal de quêtes</p>
+            <h1 className="text-2xl font-black text-[#18212a]">Running Club</h1>
+            <p className="text-sm font-medium text-[#7d705e]">Connecte-toi à ton espace running</p>
           </div>
           <form onSubmit={onSubmit} className="space-y-4">
             <Field label="Email">
@@ -77,13 +77,13 @@ export default function Login() {
             </Field>
             <ErrorMsg>{error}</ErrorMsg>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Connexion…" : "Reprendre ma progression"}
+              {loading ? "Connexion…" : "Se connecter"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm font-medium text-[#7d705e]">
             Pas de compte ?{" "}
             <Link to="/register" className="font-black text-[#1f6f5f] hover:underline">
-              Créer une partie
+              Créer un compte
             </Link>
           </p>
         </Card>
