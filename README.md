@@ -1,6 +1,10 @@
-# Coach Course à Pied
+# Running Club
 
 Application fullstack de coaching running qui transforme un objectif de course en plan d'entraînement progressif, permet de valider chaque séance et attribue l'XP exclusivement côté serveur.
+
+## Documentation Notion
+
+Documentation complète du projet (activités 1 à 10) : [Running Club sur Notion](https://plain-ant-39c.notion.site/Running-Club-a578fef1b0fc825394a90136b319efcf).
 
 ## Fonctionnalités
 
