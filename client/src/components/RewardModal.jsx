@@ -1,5 +1,6 @@
 // Écran de récompense affiché après une étape terminée ou un objectif validé.
 import { Button } from "./ui";
+import { formatDuration } from "../lib/time";
 
 // Confettis déterministes : éventail de trajectoires depuis le badge central.
 const CONFETTI_COLORS = ["#f0c66b", "#d95f45", "#4d9f6d", "#53b6ae", "#7150a4", "#3477a8"];
@@ -13,8 +14,7 @@ const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
 
 export default function RewardModal({ reward, onClose }) {
   if (!reward) return null;
-  const { xpEarned, leveledUp, newLevels = [], title, prediction } = reward;
-  const estimate = prediction?.estimateLabel;
+  const { xpEarned, leveledUp, newLevels = [], title, predictionSeconds } = reward;
 
   return (
     <div
@@ -45,9 +45,9 @@ export default function RewardModal({ reward, onClose }) {
             Niveau{newLevels.length > 1 ? "x" : ""} {newLevels.join(", ")} débloqué{newLevels.length > 1 ? "s" : ""}
           </div>
         )}
-        {estimate && (
-          <div className="mb-4 rounded-lg border border-[#53b6ae]/30 bg-[#53b6ae]/15 px-3 py-2 text-sm font-black text-[#bdeee9]">
-            Estimation actuelle : {estimate}
+        {predictionSeconds && (
+          <div className="mb-4 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm font-black text-slate-100">
+            Prédiction actuelle : {formatDuration(predictionSeconds)}
           </div>
         )}
         <Button onClick={onClose} className="w-full">

@@ -28,6 +28,7 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 
 // Routes
 app.use("/auth", require("./routes/auth"));
+app.use("/admin", require("./routes/admin"));
 app.use("/me", require("./routes/stats"));
 app.use("/ai", require("./routes/ai"));
 app.use("/domaines", require("./routes/domaines"));
@@ -41,12 +42,12 @@ app.use((req, res) => res.status(404).json({ error: "Route introuvable" }));
 
 // Gestion d'erreurs centralisée → toujours du JSON
 app.use((err, req, res, _next) => {
-  console.error(err);
   let status = err.status || 500;
   let message = err.message;
   // Erreurs Prisma courantes → statut HTTP parlant plutôt qu'un 500 générique.
   if (err.code === "P2002") { status = 409; message = "Cette valeur existe déjà."; }
   if (err.code === "P2025") { status = 404; message = "Ressource introuvable."; }
+  if (status >= 500) console.error(err);
   res.status(status).json({ error: status === 500 ? "Erreur serveur" : message });
 });
 

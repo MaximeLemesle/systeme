@@ -45,10 +45,11 @@ export async function api(path, { method = "GET", body, timeoutMs = REQUEST_TIME
   }
 
   if (!res.ok) {
-    // 401 → session expirée/invalide : on nettoie et on renvoie sur le login.
+    // 401 → session expirée/invalide : on nettoie et on renvoie sur le login
+    // avec un marqueur pour afficher un message clair à l'utilisateur.
     if (res.status === 401) {
       clearSession();
-      if (!location.pathname.startsWith("/login")) location.href = "/login";
+      if (!location.pathname.startsWith("/login")) location.href = "/login?session=expired";
     }
     throw new Error(data.error || `Erreur API ${res.status}. Réessaie dans quelques instants.`);
   }

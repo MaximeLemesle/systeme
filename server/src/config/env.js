@@ -6,10 +6,8 @@ const EnvSchema = z
   .object({
     DATABASE_URL: z.string().min(1, "DATABASE_URL est requis"),
     JWT_SECRET: z.string().min(1, "JWT_SECRET est requis"),
-    AI_PROVIDER: z.enum(["ollama", "mistral"]).default("ollama"),
     OLLAMA_URL: z.string().url("OLLAMA_URL doit être une URL valide").default("http://localhost:11434"),
-    OLLAMA_MODEL: z.string().min(1).default("mistral"),
-    MISTRAL_API_KEY: z.string().optional().default(""),
+    OLLAMA_MODEL: z.string().min(1).default("llama3.2:3b"),
     PORT: z.coerce.number().int().positive().default(4000),
     HOST: z.string().min(1).default("127.0.0.1"),
     NODE_ENV: z.string().optional().default("development"),
@@ -20,13 +18,6 @@ const EnvSchema = z
       .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
   })
   .superRefine((env, ctx) => {
-    if (env.AI_PROVIDER === "mistral" && !env.MISTRAL_API_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["MISTRAL_API_KEY"],
-        message: "MISTRAL_API_KEY est requis quand AI_PROVIDER=mistral",
-      });
-    }
     if (env.NODE_ENV === "production" && env.JWT_SECRET === "change-me") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
