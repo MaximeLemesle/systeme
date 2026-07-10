@@ -1,0 +1,26 @@
+meta {
+  name: Intake conversationnel
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/ai/objectifs/intake
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Je prépare un 10 km, je cours deux fois par semaine et je vise moins de 50 minutes."
+      }
+    ]
+  }
+}
