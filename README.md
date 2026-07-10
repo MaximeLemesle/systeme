@@ -1,142 +1,161 @@
-# Système d'évolution
+# Coach Course à Pied
 
-README = source de vérité du projet. Les anciens fichiers de cadrage peuvent rester utiles comme historique, mais l'état fonctionnel attendu est celui décrit ici.
+Application fullstack de coaching running qui transforme un objectif de course en plan d'entraînement progressif, permet de valider chaque séance et attribue l'XP exclusivement côté serveur.
 
-Système d'évolution est une application web de pratique délibérée. Un utilisateur suit jusqu'à **3 domaines** en parallèle, par exemple `Code`, `Course à pied`, `Guitare`, puis l'IA l'aide à transformer une intention vague en objectif SMART et en plan de tâches progressif. Les sessions, l'XP, les niveaux et les récompenses sont calculés côté serveur.
+## Fonctionnalités
 
-## État Produit Actuel
-
-- Authentification par compte utilisateur avec JWT.
-- Tableau de bord multi-domaine, limité à 3 domaines par utilisateur.
-- Création, sélection et suppression de domaines.
-- Un objectif actif par domaine dans l'interface.
-- Suggestions d'objectifs SMART par IA selon le domaine choisi.
-- Raffinage IA d'un objectif libre.
-- Génération IA d'un plan de tâches ordonnées.
-- Complétion atomique d'une tâche : session créée, XP calculée, tâche marquée faite et domaine mis à jour dans une seule transaction backend.
-- Validation d'objectif avec gros gain d'XP.
-- Historique des objectifs validés.
-
-## Règles Métier
-
-- Le client n'envoie jamais de montant d'XP.
-- L'XP de session, les niveaux et les bonus sont calculés dans `server/src/services/gamification.js`.
-- La limite de 3 domaines est imposée côté backend sur `POST /domaines`.
-- Les appels IA passent uniquement par le backend.
-- Les sorties IA sont validées avec Zod avant d'être utilisées.
-- Les secrets restent dans `.env`, jamais dans Git.
+- inscription et connexion JWT ;
+- rôle `user` ou `admin` embarqué dans le token ;
+- domaine unique « Course à pied » créé automatiquement ;
+- intake conversationnel assisté par IA ;
+- création d'un objectif structuré ;
+- génération déterministe d'un plan d'entraînement ;
+- suivi des séances et performances ;
+- prédiction de performance par la formule de Riegel ;
+- recalibrage du plan ;
+- XP, niveaux et récompenses calculés côté serveur ;
+- routes administrateur protégées.
 
 ## Stack
 
-- Frontend : React + Vite + React Router + TanStack Query + Tailwind CSS v4.
-- Backend : Node.js + Express + Prisma + SQLite.
-- Auth : JWT + bcrypt.
+- Frontend : React, Vite, React Router, TanStack Query, Tailwind CSS.
+- Backend : Node.js, Express, Prisma, SQLite.
+- Authentification : JWT et bcryptjs.
 - Validation : Zod.
-- IA : Ollama local par défaut, Mistral API possible en option.
+- IA : Ollama, modèle `llama3.2:3b`, uniquement pour l'intake.
 - Tests backend : `node --test`.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  U["Utilisateur"] --> C["Client React"]
-  C -->|"JWT + JSON"| API["API Express"]
-  API --> AUTH["Middleware Auth"]
-  API --> ROUTES["Routes REST"]
-  ROUTES --> PRISMA["Prisma"]
-  PRISMA --> DB["SQLite"]
-  ROUTES --> GAME["Gamification"]
-  ROUTES --> AI["Service IA"]
-  AI --> OLLAMA["Ollama local"]
-  AI -. "optionnel" .-> MISTRAL["Mistral API"]
+    U[Utilisateur] --> UI[Client React]
+    UI -->|JSON + JWT| API[API Express]
+    API --> AUTH[Auth et rôles]
+    API --> ZOD[Validation Zod]
+    API --> ROUTES[Routes REST]
+    ROUTES --> PLAN[Générateur de plan déterministe]
+    ROUTES --> GAME[XP et progression]
+    ROUTES --> RIEGEL[Prédiction Riegel]
+    ROUTES --> PRISMA[Prisma]
+    PRISMA --> DB[(SQLite)]
+    ROUTES --> AI[Intake IA]
+    AI --> OLLAMA[Ollama local]
 ```
 
-## Flux Principal
+## Flux principal
 
 ```mermaid
 sequenceDiagram
-  participant UI as Frontend
-  participant API as Backend
-  participant AI as IA
-  participant DB as SQLite
+    participant UI as Frontend React
+    participant API as API Express
+    participant IA as Ollama
+    participant PLAN as PlanGenerator
+    participant DB as SQLite
 
-  UI->>API: GET /domaines
-  API->>DB: domaines utilisateur
-  API-->>UI: 0 à 3 domaines
+    UI->>API: POST /ai/objectifs/intake
+    API->>IA: conversation utilisateur
+    IA-->>API: objectif structuré
+    API->>API: validation Zod, retry unique si nécessaire
+    API-->>UI: données d'objectif validées
 
-  UI->>API: POST /domaines/:id/objectifs/suggestions
-  API->>AI: domaine + niveau
-  AI-->>API: objectifs SMART validés Zod
-  API-->>UI: suggestions
+    UI->>API: POST /domaines/:id/objectifs
+    API->>DB: création de l'objectif
+    DB-->>API: objectif
 
-  UI->>API: POST /domaines/:id/objectifs
-  API->>DB: création objectif
+    UI->>API: POST /objectifs/:id/taches/generate
+    API->>PLAN: niveau, distance, fréquence, VMA
+    PLAN-->>API: séances à partir des templates
+    API->>DB: création transactionnelle des tâches
+    API-->>UI: plan d'entraînement
 
-  UI->>API: POST /objectifs/:id/taches/generate
-  API->>AI: objectif + domaine
-  API->>DB: tâches générées
-
-  UI->>API: POST /taches/:id/complete
-  API->>DB: transaction session + tâche + XP domaine
-  API-->>UI: XP gagnée + level up éventuel
+    UI->>API: POST /taches/:id/complete
+    API->>DB: session + performance + tâche terminée
+    API->>API: XP, Riegel et recalibrage
+    API->>DB: progression mise à jour
+    API-->>UI: récompense et nouvel état
 ```
 
-## Routes Principales
+## Place de l'IA
 
-Toutes les routes sauf `/auth/*` exigent `Authorization: Bearer <jwt>`.
+L'IA n'élabore pas directement le plan d'entraînement. Elle intervient seulement pendant l'intake conversationnel afin de transformer les réponses libres en données structurées.
 
-| Méthode | Route | Rôle |
-| --- | --- | --- |
-| `POST` | `/auth/register` | Créer un compte |
-| `POST` | `/auth/login` | Connexion |
-| `GET` | `/domaines` | Liste des domaines du user |
-| `POST` | `/domaines` | Créer un domaine, max 3 |
-| `GET` | `/domaines/:id/progression` | Domaine + objectifs + objectif actif détaillé |
-| `DELETE` | `/domaines/:id` | Supprimer un domaine et ses données |
-| `POST` | `/domaines/:id/objectifs/suggestions` | Suggestions IA |
-| `POST` | `/ai/objectifs/refine` | Raffiner un objectif libre |
-| `POST` | `/domaines/:id/objectifs` | Créer un objectif |
-| `POST` | `/objectifs/:id/taches/generate` | Générer le plan IA |
-| `POST` | `/taches/:id/complete` | Terminer une tâche avec XP atomique |
-| `PATCH` | `/objectifs/:id/validate` | Valider l'objectif |
-| `GET` | `/me/stats` | Stats globales |
+La sortie du LLM est validée avec Zod. En cas de JSON invalide, le backend effectue un seul nouvel essai, puis renvoie une erreur `502`. Le plan est ensuite généré par du code déterministe afin d'obtenir un résultat testable, reproductible et explicable.
+
+Voir également `CONTEXT.md` et `docs/adr/`.
+
+## Modèle de données
+
+Le MCD, le MLD, les cardinalités, clés étrangères et règles de suppression sont documentés dans [`docs/mcd-mld.md`](docs/mcd-mld.md).
+
+## API REST
+
+Toutes les routes privées nécessitent `Authorization: Bearer <token>`.
+
+| Méthode | Route | Accès | Résultat principal |
+|---|---|---|---|
+| POST | `/auth/register` | Public | crée un utilisateur `user` |
+| POST | `/auth/login` | Public | renvoie JWT et utilisateur public |
+| GET | `/domaines` | User | renvoie le domaine running |
+| GET | `/domaines/:id/progression` | User | progression, objectif et séances |
+| POST | `/domaines/:id/objectifs` | User | crée un objectif |
+| PATCH | `/objectifs/:id` | User | modifie titre et description |
+| PATCH | `/objectifs/:id/validate` | User | valide l'objectif et attribue l'XP |
+| POST | `/ai/objectifs/intake` | User | intake conversationnel IA |
+| POST | `/objectifs/:id/taches/generate` | User | génère le plan déterministe |
+| POST | `/taches/:id/complete` | User | termine une séance et calcule l'XP |
+| GET | `/sessions` | User | historique des sessions |
+| POST | `/sessions/:id/feedback` | User | ajoute un feedback |
+| GET | `/admin/users` | Admin | liste utilisateurs et statistiques |
+
+Codes utilisés : `200`, `201`, `400`, `401`, `403`, `404`, `409` et `502`.
+
+## Sécurité
+
+- mots de passe hashés avec bcryptjs ;
+- JWT signé contenant `userId` et `role` ;
+- inscription incapable de créer un administrateur ;
+- middleware d'authentification puis `requireRole("admin")` ;
+- validation Zod des entrées et sorties IA ;
+- Helmet et rate limiting ;
+- vérification d'appartenance des ressources ;
+- réponse `404` utilisée pour ne pas révéler les ressources d'un autre utilisateur ;
+- aucun montant d'XP accepté depuis le client ;
+- aucun secret exposé au frontend.
 
 ## Prérequis
 
-- Node.js 20.19+ ou 22.12+.
-- Ollama installé pour les fonctions IA locales.
-- Modèle Ollama installé (rapide, ~15-30 s par réponse) :
+- Node.js 20.19+ ou 22.12+ ;
+- npm ;
+- Ollama pour l'intake IA.
 
 ```bash
 ollama pull llama3.2:3b
 ```
 
-Alternative plus qualitative mais 4-6× plus lente : `ollama pull mistral` puis changer `OLLAMA_MODEL` dans `server/.env`. Le modèle est préchargé au démarrage du backend pour éviter l'attente du premier appel.
-
 ## Configuration
 
-Backend : `server/.env`
+`server/.env` :
 
-```bash
+```env
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="change-me"
 AI_PROVIDER="ollama"
 OLLAMA_URL="http://localhost:11434"
 OLLAMA_MODEL="llama3.2:3b"
-MISTRAL_API_KEY=""
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="change-me-now"
 PORT=4000
 HOST="127.0.0.1"
 ```
 
-Frontend : `client/.env`
+`client/.env` :
 
-```bash
+```env
 VITE_API_URL="http://127.0.0.1:4000"
 ```
 
-Le backend valide la configuration au démarrage. En production, `JWT_SECRET` doit être remplacé.
-
-## Démarrage Rapide
+## Installation et démarrage
 
 Depuis la racine :
 
@@ -144,21 +163,14 @@ Depuis la racine :
 ./start.sh
 ```
 
-Arrêt :
-
-```bash
-./stop.sh
-```
-
-## Démarrage Manuel
-
-Backend :
+Installation manuelle du backend :
 
 ```bash
 cd server
 cp .env.example .env
 npm install
 npx prisma migrate dev
+npm run db:seed
 npm run dev
 ```
 
@@ -171,55 +183,35 @@ npm install
 npm run dev
 ```
 
-Ouvrir ensuite `http://localhost:5173`.
+Application : `http://localhost:5173`.
 
 ## Vérifications
-
-Backend :
 
 ```bash
 cd server
 npm test
 npx prisma validate
-```
 
-Frontend :
-
-```bash
-cd client
+cd ../client
 npm run lint
 npm run build
 ```
 
-Utiliser Node 22 localement si Vite refuse Node 20.9.0.
+## Wireframes et démonstration
 
-## Structure
+Les écrans attendus et leur flux de données sont décrits dans [`docs/wireframes.md`](docs/wireframes.md). Les captures réelles doivent être ajoutées dans `docs/img/` après lancement local de l'application.
 
-```text
-systeme/
-├── server/
-│   ├── prisma/
-│   └── src/
-│       ├── app.js
-│       ├── index.js
-│       ├── config/
-│       ├── middleware/
-│       ├── routes/
-│       ├── services/
-│       └── validation/
-├── client/
-│   └── src/
-│       ├── api/
-│       ├── components/
-│       ├── lib/
-│       └── pages/
-└── README.md
-```
+## Limites et pistes d'amélioration
 
-## Points À Ne Pas Casser
+- Le rôle reste figé dans le JWT pendant sa durée de validité, actuellement sept jours.
+- Le schéma conserve des colonnes issues de l'ancien système multi-domaines.
+- Le plan ne possède pas encore de calendrier avec des dates réelles.
+- La formule de Riegel est une estimation simplifiée.
+- `CoursePage.jsx` reste volumineux et devrait être découpé.
+- SQLite convient à la démonstration, mais PostgreSQL serait préférable en production.
+- Le générateur de plan devrait disposer d'une suite de tests dédiée.
+- Les captures du README doivent être produites depuis l'application locale finale.
 
-- Ne jamais calculer l'XP côté client.
-- Ne jamais exposer de clé IA côté frontend.
-- Ne pas contourner Zod sur les payloads qui écrivent ou les réponses IA.
-- Ne pas dépasser 3 domaines par utilisateur.
-- Garder `/taches/:id/complete` comme flux principal pour terminer une tâche planifiée.
+## Analyse critique
+
+Le pivot vers un mono-domaine réduit la couverture fonctionnelle, mais renforce la cohérence du produit. La génération déterministe limite l'effet spectaculaire de l'IA, tout en améliorant la fiabilité et l'explicabilité. La séparation entre intake probabiliste et plan déterministe constitue le principal compromis architectural du projet.
