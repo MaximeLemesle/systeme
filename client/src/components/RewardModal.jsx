@@ -13,7 +13,8 @@ const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
 
 export default function RewardModal({ reward, onClose }) {
   if (!reward) return null;
-  const { xpEarned, leveledUp, newLevels = [], title } = reward;
+  const { xpEarned, leveledUp, newLevels = [], title, prediction } = reward;
+  const estimate = prediction?.estimateLabel;
 
   return (
     <div
@@ -42,6 +43,11 @@ export default function RewardModal({ reward, onClose }) {
         {leveledUp && (
           <div className="mb-4 rounded-lg border border-[#f0c66b]/25 bg-[#f0c66b]/15 px-3 py-2 text-sm font-black text-[#ffe2a0]">
             Niveau{newLevels.length > 1 ? "x" : ""} {newLevels.join(", ")} débloqué{newLevels.length > 1 ? "s" : ""}
+          </div>
+        )}
+        {estimate && (
+          <div className="mb-4 rounded-lg border border-[#53b6ae]/30 bg-[#53b6ae]/15 px-3 py-2 text-sm font-black text-[#bdeee9]">
+            Estimation actuelle : {estimate}
           </div>
         )}
         <Button onClick={onClose} className="w-full">
