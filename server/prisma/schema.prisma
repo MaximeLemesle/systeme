@@ -99,6 +99,8 @@ model Session {
   timeSeconds     Int?      @map("time_seconds")
   difficulty      String    @default("moyen") // facile | moyen | difficile
   selfRating      Int?      @map("self_rating") // 1..5 (auto-évaluation)
+  perfDistanceKm  Float?    @map("perf_distance_km") // perf réelle : distance (km)
+  perfDurationSec Int?      @map("perf_duration_sec") // perf réelle : temps (s)
   xpEarned        Int       @default(0) @map("xp_earned")
   createdAt       DateTime  @default(now()) @map("created_at")
   objectifId      Int       @map("objectif_id")
