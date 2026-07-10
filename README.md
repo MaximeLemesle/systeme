@@ -1,49 +1,35 @@
-# Coach Course à Pied 🏃
+# Coach Course à Pied
 
-> **README = source de vérité du projet.** Vocabulaire métier : [`CONTEXT.md`](CONTEXT.md) ·
-> Décision d'architecture IA : [`docs/adr/0001-plan-deterministe-llm-intake-seulement.md`](docs/adr/0001-plan-deterministe-llm-intake-seulement.md)
-
-Application web fullstack de coaching course à pied. Le coureur décrit son objectif en langage
-naturel (« courir un 10 km en 50 minutes d'ici fin août ») ; une **IA conversationnelle** recueille
-les paramètres manquants, puis le serveur **génère un plan d'entraînement déterministe** (séances
-en % de VMA), **prédit** la performance via la formule de Riegel et **recalibre** les séances
-restantes à chaque performance réelle loggée. Le tout est **gamifié** : XP, niveaux et récompenses,
-calculés exclusivement côté serveur.
-
-📸 Écrans clés et wireframes : [`docs/wireframes.md`](docs/wireframes.md)
+Application fullstack de coaching running qui transforme un objectif de course en plan d'entraînement progressif, permet de valider chaque séance et attribue l'XP exclusivement côté serveur.
 
 ## Fonctionnalités
 
-- **Authentification JWT** (register/login, bcrypt) avec **gestion des rôles** `user` / `admin`.
-- **Intake conversationnel IA** : le coach pose au plus 4 questions pour transformer une intention
-  vague en objectif SMART (archétype `chrono` ou `completion`, distance, échéance, fréquence).
-- **Plan d'entraînement déterministe** : 5 à 20 semaines de séances issues d'un catalogue fermé de
-  8 templates (endurance fondamentale, VO2, seuil, allure spécifique, sortie longue…), allures
-  exprimées en % de VMA.
-- **Complétion atomique d'une séance** : session créée, XP calculée, prédiction mise à jour et
-  séances restantes recalibrées — dans une seule transaction.
-- **Prédiction Riegel** : estimation du chrono (ou de la plus longue distance) recalculée à chaque
-  perf réelle, jamais par le LLM.
-- **Gamification serveur** : XP par séance (durée × difficulté), montées de niveau
-  (seuil = 100 × niveau^1.6), gros gain à la validation de l'objectif, barre des 10 000 heures.
-- **Espace admin** : liste des coureurs et stats globales, réservées au rôle `admin`.
+- inscription et connexion JWT ;
+- rôle `user` ou `admin` embarqué dans le token ;
+- domaine unique « Course à pied » créé automatiquement ;
+- intake conversationnel assisté par IA ;
+- création d'un objectif structuré ;
+- génération déterministe d'un plan d'entraînement ;
+- suivi des séances et performances ;
+- prédiction de performance par la formule de Riegel ;
+- recalibrage du plan ;
+- XP, niveaux et récompenses calculés côté serveur ;
+- routes administrateur protégées.
 
 ## Stack
 
-| Couche | Techno |
-| --- | --- |
-| Frontend | React 19 + Vite, React Router, TanStack Query, Tailwind CSS v4 |
-| Backend | Node.js + Express, Prisma ORM |
-| Base de données | SQLite (fichier local, zéro infra) |
-| Auth | JWT (rôle embarqué dans le payload) + bcryptjs |
-| Validation | Zod (entrées API **et** sorties LLM) |
-| IA | Ollama local (`llama3.2:3b`) ; Mistral API en option |
-| Tests | `node --test` + supertest (20 tests) |
+- Frontend : React, Vite, React Router, TanStack Query, Tailwind CSS.
+- Backend : Node.js, Express, Prisma, SQLite.
+- Authentification : JWT et bcryptjs.
+- Validation : Zod.
+- IA : Ollama, modèle `llama3.2:3b`, uniquement pour l'intake.
+- Tests backend : `node --test`.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
+<<<<<<< HEAD
   U["Coureur"] --> C["Client React<br/>(TanStack Query)"]
   C -->|"JWT + JSON"| API["API Express"]
   API --> AUTH["Middleware auth<br/>+ requireRole"]
@@ -104,10 +90,106 @@ strict avec un retry, sinon erreur 502 propre. La fonctionnalité IA est donc r�
 implémentée et démontrable (pas un mock) — mais cantonnée là où elle apporte de la valeur.
 
 ## Modèle de données
+=======
+    U[Utilisateur] --> UI[Client React]
+    UI -->|JSON + JWT| API[API Express]
+    API --> AUTH[Auth et rôles]
+    API --> ZOD[Validation Zod]
+    API --> ROUTES[Routes REST]
+    ROUTES --> PLAN[Générateur de plan déterministe]
+    ROUTES --> GAME[XP et progression]
+    ROUTES --> RIEGEL[Prédiction Riegel]
+    ROUTES --> PRISMA[Prisma]
+    PRISMA --> DB[(SQLite)]
+    ROUTES --> AI[Intake IA]
+    AI --> OLLAMA[Ollama local]
+```
+
+## Flux principal
+
+```mermaid
+sequenceDiagram
+    participant UI as Frontend React
+    participant API as API Express
+    participant IA as Ollama
+    participant PLAN as PlanGenerator
+    participant DB as SQLite
+
+    UI->>API: POST /ai/objectifs/intake
+    API->>IA: conversation utilisateur
+    IA-->>API: objectif structuré
+    API->>API: validation Zod, retry unique si nécessaire
+    API-->>UI: données d'objectif validées
+
+    UI->>API: POST /domaines/:id/objectifs
+    API->>DB: création de l'objectif
+    DB-->>API: objectif
+
+    UI->>API: POST /objectifs/:id/taches/generate
+    API->>PLAN: niveau, distance, fréquence, VMA
+    PLAN-->>API: séances à partir des templates
+    API->>DB: création transactionnelle des tâches
+    API-->>UI: plan d'entraînement
+
+    UI->>API: POST /taches/:id/complete
+    API->>DB: session + performance + tâche terminée
+    API->>API: XP, Riegel et recalibrage
+    API->>DB: progression mise à jour
+    API-->>UI: récompense et nouvel état
+```
+
+## Place de l'IA
+
+L'IA n'élabore pas directement le plan d'entraînement. Elle intervient seulement pendant l'intake conversationnel afin de transformer les réponses libres en données structurées.
+
+La sortie du LLM est validée avec Zod. En cas de JSON invalide, le backend effectue un seul nouvel essai, puis renvoie une erreur `502`. Le plan est ensuite généré par du code déterministe afin d'obtenir un résultat testable, reproductible et explicable.
+
+Voir également `CONTEXT.md` et `docs/adr/`.
+
+## Modèle de données
+
+Le MCD, le MLD, les cardinalités, clés étrangères et règles de suppression sont documentés dans [`docs/mcd-mld.md`](docs/mcd-mld.md).
+
+## API REST
+
+Toutes les routes privées nécessitent `Authorization: Bearer <token>`.
+
+| Méthode | Route | Accès | Résultat principal |
+|---|---|---|---|
+| POST | `/auth/register` | Public | crée un utilisateur `user` |
+| POST | `/auth/login` | Public | renvoie JWT et utilisateur public |
+| GET | `/domaines` | User | renvoie le domaine running |
+| GET | `/domaines/:id/progression` | User | progression, objectif et séances |
+| POST | `/domaines/:id/objectifs` | User | crée un objectif |
+| PATCH | `/objectifs/:id` | User | modifie titre et description |
+| PATCH | `/objectifs/:id/validate` | User | valide l'objectif et attribue l'XP |
+| POST | `/ai/objectifs/intake` | User | intake conversationnel IA |
+| POST | `/objectifs/:id/taches/generate` | User | génère le plan déterministe |
+| POST | `/taches/:id/complete` | User | termine une séance et calcule l'XP |
+| GET | `/sessions` | User | historique des sessions |
+| POST | `/sessions/:id/feedback` | User | ajoute un feedback |
+| GET | `/admin/users` | Admin | liste utilisateurs et statistiques |
+
+Codes utilisés : `200`, `201`, `400`, `401`, `403`, `404`, `409` et `502`.
+
+## Sécurité
+
+- mots de passe hashés avec bcryptjs ;
+- JWT signé contenant `userId` et `role` ;
+- inscription incapable de créer un administrateur ;
+- middleware d'authentification puis `requireRole("admin")` ;
+- validation Zod des entrées et sorties IA ;
+- Helmet et rate limiting ;
+- vérification d'appartenance des ressources ;
+- réponse `404` utilisée pour ne pas révéler les ressources d'un autre utilisateur ;
+- aucun montant d'XP accepté depuis le client ;
+- aucun secret exposé au frontend.
+>>>>>>> origin/docs/phases-4-8-coach-running
 
 6 entités : `User` (1) ─ `Domaine` (« Course à pied », auto-créé, porte l'XP) ─ `Objectif` ─
 `Tache` (= séance du plan) ─ `Session` (pratique loggée + perf réelle) ─ `Feedback`.
 
+<<<<<<< HEAD
 ➡️ **MCD + MLD complets et notes de conception : [`docs/mcd-mld.md`](docs/mcd-mld.md)**
 
 ## API REST
@@ -161,12 +243,47 @@ dans [`bruno/`](bruno/).
 ## Installation & démarrage
 
 Prérequis : **Node.js 20.19+ ou 22.12+**, **Ollama** (pour l'IA locale).
+=======
+- Node.js 20.19+ ou 22.12+ ;
+- npm ;
+- Ollama pour l'intake IA.
+>>>>>>> origin/docs/phases-4-8-coach-running
 
 ```bash
 # 1. Modèle IA local (une fois)
 ollama pull llama3.2:3b
 
+<<<<<<< HEAD
 # 2. Tout lancer (installe les deps, crée les .env et la base au premier run)
+=======
+## Configuration
+
+`server/.env` :
+
+```env
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="change-me"
+AI_PROVIDER="ollama"
+OLLAMA_URL="http://localhost:11434"
+OLLAMA_MODEL="llama3.2:3b"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="change-me-now"
+PORT=4000
+HOST="127.0.0.1"
+```
+
+`client/.env` :
+
+```env
+VITE_API_URL="http://127.0.0.1:4000"
+```
+
+## Installation et démarrage
+
+Depuis la racine :
+
+```bash
+>>>>>>> origin/docs/phases-4-8-coach-running
 ./start.sh
 # → http://127.0.0.1:5173   (arrêt : ./stop.sh)
 
@@ -175,16 +292,27 @@ cd server && npm run db:seed
 # → admin@coach.local / admin123! (surchargable via ADMIN_EMAIL / ADMIN_PASSWORD)
 ```
 
+<<<<<<< HEAD
 <details>
 <summary>Démarrage manuel (sans start.sh)</summary>
+=======
+Installation manuelle du backend :
+>>>>>>> origin/docs/phases-4-8-coach-running
 
 ```bash
 # Backend
 cd server
 cp .env.example .env
 npm install
+<<<<<<< HEAD
 npx prisma migrate deploy
 npm run dev            # port 4000
+=======
+npx prisma migrate dev
+npm run db:seed
+npm run dev
+```
+>>>>>>> origin/docs/phases-4-8-coach-running
 
 # Frontend (autre terminal)
 cd client
@@ -197,7 +325,11 @@ ollama serve
 ```
 </details>
 
+<<<<<<< HEAD
 ## Configuration (`server/.env`)
+=======
+Application : `http://localhost:5173`.
+>>>>>>> origin/docs/phases-4-8-coach-running
 
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
@@ -210,6 +342,7 @@ ollama serve
 | `CORS_ORIGIN` | `http://localhost:5173,…` | Origines autorisées |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@coach.local` / `admin123!` | Compte seedé par `db:seed` |
 
+<<<<<<< HEAD
 Côté client : `VITE_API_URL` (défaut `http://127.0.0.1:4000`).
 
 ## Tests
@@ -239,3 +372,33 @@ prédiction/recalibrage Riegel, gamification (montées de niveau multiples).
   un modèle plus capable permettrait d'enrichir les conseils de séance ou d'expliquer le
   recalibrage en langage naturel.
 - **`planGenerator.js` sans tests unitaires dédiés** : couvert indirectement par les tests d'API.
+=======
+```bash
+cd server
+npm test
+npx prisma validate
+
+cd ../client
+npm run lint
+npm run build
+```
+
+## Wireframes et démonstration
+
+Les écrans attendus et leur flux de données sont décrits dans [`docs/wireframes.md`](docs/wireframes.md). Les captures réelles doivent être ajoutées dans `docs/img/` après lancement local de l'application.
+
+## Limites et pistes d'amélioration
+
+- Le rôle reste figé dans le JWT pendant sa durée de validité, actuellement sept jours.
+- Le schéma conserve des colonnes issues de l'ancien système multi-domaines.
+- Le plan ne possède pas encore de calendrier avec des dates réelles.
+- La formule de Riegel est une estimation simplifiée.
+- `CoursePage.jsx` reste volumineux et devrait être découpé.
+- SQLite convient à la démonstration, mais PostgreSQL serait préférable en production.
+- Le générateur de plan devrait disposer d'une suite de tests dédiée.
+- Les captures du README doivent être produites depuis l'application locale finale.
+
+## Analyse critique
+
+Le pivot vers un mono-domaine réduit la couverture fonctionnelle, mais renforce la cohérence du produit. La génération déterministe limite l'effet spectaculaire de l'IA, tout en améliorant la fiabilité et l'explicabilité. La séparation entre intake probabiliste et plan déterministe constitue le principal compromis architectural du projet.
+>>>>>>> origin/docs/phases-4-8-coach-running
