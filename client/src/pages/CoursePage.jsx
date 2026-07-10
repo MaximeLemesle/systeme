@@ -400,7 +400,7 @@ function MissionHeader({ level, totalHours, objectifsTermines }) {
             <div className="grid gap-5 p-5 md:grid-cols-[1.2fr_0.8fr] md:p-6">
                 <div>
                     <div className="mb-3 inline-flex rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#f0c66b]">
-                        Carte de campagne
+                        Carnet d'entraînement
                     </div>
                     <h1 className="max-w-2xl text-3xl font-black leading-tight md:text-4xl">
                         Chaque séance te rapproche de ton objectif.
@@ -453,7 +453,7 @@ function StatTile({ icon, label, value, tone }) {
 function QuestStepper({ hasObjectif, hasPlan, allDone }) {
     const steps = [
         { icon: "★", label: "Définis ton objectif", done: hasObjectif },
-        { icon: "🗺", label: "Trace la route", done: hasPlan },
+        { icon: "🗺", label: "Trace ton plan", done: hasPlan },
         {
             icon: "🏆",
             label: allDone
