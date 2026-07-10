@@ -93,7 +93,7 @@ start_background() {
   fi
 }
 
-echo "Démarrage de Système d'évolution…"
+echo "Démarrage du Coach Course à Pied…"
 echo
 
 # --- Dépendances & base (premier lancement uniquement) ---
