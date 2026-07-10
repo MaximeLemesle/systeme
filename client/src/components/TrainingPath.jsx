@@ -3,7 +3,8 @@
 // - étape courante → pastille blanche entourée, halo pulsé
 // - étape verrouillée → pastille grise
 // - dernière étape (objectif) → trophée 🏆
-import { categoryMeta } from "../lib/categories";
+// Les étapes sont groupées par semaine (weekIndex) avec un séparateur.
+import { templateMeta } from "../lib/templates";
 
 export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
   const doneCount = steps.filter((s) => s.status === "fait").length;
@@ -15,9 +16,9 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
       {/* Progression globale */}
       <div className="mb-4 rounded-lg border-2 border-[#3d2d18]/10 bg-[#fff8e8]/85 p-3">
         <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-black text-[#18212a]">Route de quête</span>
+          <span className="font-black text-[#18212a]">Parcours d'entraînement</span>
           <span className="font-black text-[#7d705e]">
-            {doneCount} / {total} étapes
+            {doneCount} / {total} séances
           </span>
         </div>
         <div className="h-4 w-full overflow-hidden rounded-lg border-2 border-[#3d2d18]/15 bg-[#ead9b8] shadow-inner">
@@ -49,9 +50,10 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
             const isDone = s.status === "fait";
             const isCurrent = i === currentIndex;
             const isLocked = currentIndex !== -1 && i > currentIndex;
-            const isObjectif = s.category === "objectif" || i === total - 1;
-            const meta = categoryMeta(isObjectif ? "objectif" : s.category);
+            const isObjectif = s.templateKey === "objectif" || i === total - 1;
+            const meta = templateMeta(isObjectif ? "objectif" : s.templateKey);
             const selected = s.id === selectedId;
+            const isNewWeek = i === 0 || s.weekIndex !== steps[i - 1].weekIndex;
 
             // Alternance gauche / droite autour de la colonne ; objectif centré.
             const align = isObjectif
@@ -72,24 +74,33 @@ export default function TrainingPath({ seances: steps, selectedId, onSelect }) {
             const size = isObjectif ? "h-20 w-20 text-3xl" : "h-16 w-16 text-xl";
 
             return (
-              <div key={s.id} className={`flex ${align}`}>
-                <div className="flex flex-col items-center" style={{ width: isObjectif ? "auto" : "42%" }}>
-                  <button
-                    onClick={() => onSelect(s.id)}
-                    className={`flex items-center justify-center rounded-lg font-black transition-transform hover:scale-105 ${size} ${node} ${
-                      selected ? "ring-4 ring-[#d89b2b]/35" : ""
-                    }`}
-                    title={s.title}
-                  >
-                    {isObjectif ? "🏆" : isDone ? "✓" : isLocked ? "🔒" : s.orderIndex}
-                  </button>
-                  <span
-                    className={`mt-1.5 rounded-md bg-[#fffaf0]/85 px-2 py-1 text-center text-xs font-black shadow-sm ${
-                      isCurrent ? "text-[#1f6f5f]" : "text-[#8a785e]"
-                    }`}
-                  >
-                    {isObjectif ? "Arrivée" : isCurrent ? "Checkpoint actif" : `${meta.emoji}`}
-                  </span>
+              <div key={s.id}>
+                {isNewWeek && !isObjectif && (
+                  <div className="my-1 flex justify-center">
+                    <span className="rounded-full bg-[#172126]/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#f0c66b]">
+                      Semaine {s.weekIndex}
+                    </span>
+                  </div>
+                )}
+                <div className={`flex ${align}`}>
+                  <div className="flex flex-col items-center" style={{ width: isObjectif ? "auto" : "42%" }}>
+                    <button
+                      onClick={() => onSelect(s.id)}
+                      className={`flex items-center justify-center rounded-lg font-black transition-transform hover:scale-105 ${size} ${node} ${
+                        selected ? "ring-4 ring-[#d89b2b]/35" : ""
+                      }`}
+                      title={s.title}
+                    >
+                      {isObjectif ? "🏆" : isDone ? "✓" : isLocked ? "🔒" : s.orderIndex}
+                    </button>
+                    <span
+                      className={`mt-1.5 rounded-md bg-[#fffaf0]/85 px-2 py-1 text-center text-xs font-black shadow-sm ${
+                        isCurrent ? "text-[#1f6f5f]" : "text-[#8a785e]"
+                      }`}
+                    >
+                      {isObjectif ? "Arrivée" : isCurrent ? "Séance du jour" : `${meta.emoji}`}
+                    </span>
+                  </div>
                 </div>
               </div>
             );

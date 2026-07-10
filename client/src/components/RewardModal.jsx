@@ -51,7 +51,7 @@ export default function RewardModal({ reward, onClose }) {
           </div>
         )}
         <Button onClick={onClose} className="w-full">
-          Continuer la campagne
+          Continuer l'entraînement
         </Button>
       </div>
     </div>

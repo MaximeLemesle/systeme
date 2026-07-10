@@ -1,6 +1,8 @@
 // Logique de gamification — TOUT se calcule côté serveur (anti-triche).
 // totalXp = XP accumulée DANS le niveau courant (pour afficher "1240 / 1800").
 
+const { TEMPLATES } = require("./templates");
+
 const XP_PER_MIN = 2;
 const DIFFICULTY_MULT = { facile: 1.0, moyen: 1.25, difficile: 1.5 };
 const VALIDATION_XP = { facile: 500, moyen: 1000, difficile: 2000 };

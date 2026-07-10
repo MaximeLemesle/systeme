@@ -1,9 +1,10 @@
-// Routes /taches : modifier / cocher une tâche.
+// Routes /taches : la seule transition exposée est la complétion (session + XP + recalibrage).
+// Pas d'update générique : une séance générée par le plan ne se modifie pas à la main,
+// et un PATCH libre permettrait de passer une tâche à "fait" sans XP ni recalibrage.
 const express = require("express");
 const prisma = require("../prisma");
 const auth = require("../middleware/auth");
-const { findTache } = require("../access");
-const { TacheUpdateIn, CompleteTacheIn } = require("../validation/schemas");
+const { CompleteTacheIn } = require("../validation/schemas");
 const gam = require("../services/gamification");
 const training = require("../services/training-plan");
 const asyncHandler = require("../middleware/asyncHandler");

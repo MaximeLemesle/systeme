@@ -9,7 +9,7 @@ const asyncHandler = require("../middleware/asyncHandler");
 const router = express.Router();
 router.use(auth); // toutes les routes domaines exigent un token
 
-// GET /domaines — liste des domaines du user
+// GET /domaines — le domaine unique du user (avec ses derniers objectifs)
 router.get("/", asyncHandler(async (req, res) => {
   const domaines = await prisma.domaine.findMany({
     where: { userId: req.userId },

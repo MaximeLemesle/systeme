@@ -11,7 +11,11 @@
     "test": "DATABASE_URL=file:./test.db NODE_ENV=test node --test",
     "db:seed": "node prisma/seed.js",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
