@@ -21,9 +21,9 @@ export default function Layout() {
             </span>
             <span className="hidden leading-tight sm:block">
               <span className="block text-sm font-black uppercase tracking-[0.14em] text-[#6c5a3a]">
-                Journal
+                Coach running
               </span>
-              <span className="block">Système d'évolution</span>
+              <span className="block">Running Club</span>
             </span>
           </Link>
           <div className="flex items-center gap-3 text-sm">
