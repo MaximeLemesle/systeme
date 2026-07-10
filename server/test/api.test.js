@@ -102,7 +102,7 @@ test("un utilisateur ne voit pas les ressources d'un autre (404)", async () => {
   const domaine = await getDomaine(tokenA);
   const objectif = await createObjectif(tokenA, domaine.id);
 
-  await request(app).get(`/domaines/${domaine.id}`).set("Authorization", `Bearer ${tokenB}`).expect(404);
+  await request(app).get(`/domaines/${domaine.id}/progression`).set("Authorization", `Bearer ${tokenB}`).expect(404);
   await request(app).get(`/objectifs/${objectif.id}`).set("Authorization", `Bearer ${tokenB}`).expect(404);
   await request(app)
     .patch(`/objectifs/${objectif.id}/validate`)

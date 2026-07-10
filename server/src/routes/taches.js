@@ -1,9 +1,10 @@
-// Routes /taches : modifier / cocher une tâche.
+// Routes /taches : la seule transition exposée est la complétion (session + XP + recalibrage).
+// Pas d'update générique : une séance générée par le plan ne se modifie pas à la main,
+// et un PATCH libre permettrait de passer une tâche à "fait" sans XP ni recalibrage.
 const express = require("express");
 const prisma = require("../prisma");
 const auth = require("../middleware/auth");
-const { findTache } = require("../access");
-const { TacheUpdateIn, CompleteTacheIn } = require("../validation/schemas");
+const { CompleteTacheIn } = require("../validation/schemas");
 const gam = require("../services/gamification");
 const prediction = require("../services/prediction");
 const planGenerator = require("../services/planGenerator");
@@ -120,26 +121,6 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
   });
 
   res.status(201).json(result);
-}));
-
-// PATCH /taches/:id — modifier (ex : status "fait")
-router.patch("/:id", asyncHandler(async (req, res) => {
-  const id = Number(req.params.id);
-  const parsed = TacheUpdateIn.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0].message });
-  }
-  if (!(await findTache(req.userId, id))) {
-    return res.status(404).json({ error: "Tâche introuvable" });
-  }
-
-  const data = { ...parsed.data };
-  // Horodatage automatique quand la tâche passe à "fait".
-  if (data.status === "fait") data.completedAt = new Date();
-  if (data.status && data.status !== "fait") data.completedAt = null;
-
-  const tache = await prisma.tache.update({ where: { id }, data });
-  res.json(tache);
 }));
 
 module.exports = router;

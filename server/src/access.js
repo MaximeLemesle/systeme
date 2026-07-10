@@ -12,16 +12,10 @@ function findObjectif(userId, id) {
   });
 }
 
-function findTache(userId, id) {
-  return prisma.tache.findFirst({
-    where: { id, objectif: { domaine: { userId } } },
-  });
-}
-
 function findSession(userId, id) {
   return prisma.session.findFirst({
     where: { id, objectif: { domaine: { userId } } },
   });
 }
 
-module.exports = { findDomaine, findObjectif, findTache, findSession };
+module.exports = { findDomaine, findObjectif, findSession };

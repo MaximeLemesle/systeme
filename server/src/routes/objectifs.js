@@ -27,7 +27,7 @@ router.get("/:id", asyncHandler(async (req, res) => {
   res.json(objectif);
 }));
 
-// PUT /objectifs/:id — modifier (ex : currentValue)
+// PUT /objectifs/:id — modifier le titre/la description (le reste est piloté par le serveur)
 router.put("/:id", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = ObjectifUpdateIn.safeParse(req.body);

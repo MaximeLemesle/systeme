@@ -71,6 +71,8 @@ const ObjectifIn = z.object({
   aiRefined: z.boolean().optional().default(false),
 });
 
+// Update volontairement restreint : currentValue est calculé par la prédiction serveur
+// et status ne change que via /validate — les accepter ici ouvrirait un bypass XP.
 const ObjectifUpdateIn = z.object({
   title: z
     .string()
@@ -79,20 +81,6 @@ const ObjectifUpdateIn = z.object({
     .max(150, "Le titre ne peut pas dépasser 150 caractères")
     .optional(),
   description: z.string().optional().nullable(),
-  currentValue: z.number().optional().nullable(),
-  difficulty: Difficulty.optional(),
-  status: z.enum(["en_cours", "valide", "abandonne"]).optional(),
-});
-
-const TacheUpdateIn = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(2, "Le titre de la tâche doit contenir au moins 2 caractères")
-    .max(150, "Le titre de la tâche ne peut pas dépasser 150 caractères")
-    .optional(),
-  description: z.string().optional().nullable(),
-  status: z.enum(["a_faire", "en_cours", "fait"]).optional(),
 });
 
 const SessionIn = z.object({
@@ -194,7 +182,6 @@ module.exports = {
   LoginIn,
   ObjectifIn,
   ObjectifUpdateIn,
-  TacheUpdateIn,
   CompleteTacheIn,
   SessionIn,
   FeedbackIn,

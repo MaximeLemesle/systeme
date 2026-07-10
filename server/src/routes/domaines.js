@@ -49,17 +49,6 @@ router.get("/:id/progression", asyncHandler(async (req, res) => {
   res.json({ domaine, objectifs, objectifActif });
 }));
 
-// GET /domaines/:id — détail + objectifs
-router.get("/:id", asyncHandler(async (req, res) => {
-  const id = Number(req.params.id);
-  const domaine = await prisma.domaine.findFirst({
-    where: { id, userId: req.userId },
-    include: { objectifs: { orderBy: { createdAt: "desc" } } },
-  });
-  if (!domaine) return res.status(404).json({ error: "Domaine introuvable" });
-  res.json(domaine);
-}));
-
 // POST /domaines/:id/objectifs — créer un objectif de course
 router.post("/:id/objectifs", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
