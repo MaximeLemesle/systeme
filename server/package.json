@@ -10,7 +10,11 @@
     "pretest": "rm -f prisma/test.db && cat prisma/migrations/*/migration.sql | sqlite3 prisma/test.db",
     "test": "DATABASE_URL=file:./test.db NODE_ENV=test node --test --test-force-exit",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",

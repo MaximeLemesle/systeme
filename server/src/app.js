@@ -34,6 +34,7 @@ app.use("/domaines", require("./routes/domaines"));
 app.use("/objectifs", require("./routes/objectifs"));
 app.use("/taches", require("./routes/taches"));
 app.use("/sessions", require("./routes/feedback"));
+app.use("/admin", require("./routes/admin"));
 
 // 404 JSON pour toute route inconnue
 app.use((req, res) => res.status(404).json({ error: "Route introuvable" }));
