@@ -26,7 +26,8 @@ test("applyXpToDomaine gère les montées de niveau multiples", () => {
 });
 
 test("taskDifficulty reste calculée côté serveur", () => {
-  assert.equal(gamification.taskDifficulty("fractionne"), "difficile");
+  assert.equal(gamification.taskDifficulty("fractionne_court"), "difficile");
+  assert.equal(gamification.taskDifficulty("tempo"), "moyen");
   assert.equal(gamification.taskDifficulty("recuperation"), "facile");
   assert.equal(gamification.taskDifficulty("inconnue"), "moyen");
 });

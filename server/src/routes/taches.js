@@ -5,6 +5,7 @@ const auth = require("../middleware/auth");
 const { findTache } = require("../access");
 const { TacheUpdateIn, CompleteTacheIn } = require("../validation/schemas");
 const gam = require("../services/gamification");
+const training = require("../services/training-plan");
 const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
@@ -34,6 +35,18 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
       err.status = 400;
       throw err;
     }
+    const previousTaskCount = await tx.tache.count({
+      where: {
+        objectifId: tache.objectifId,
+        orderIndex: { lt: tache.orderIndex },
+        status: { not: "fait" },
+      },
+    });
+    if (previousTaskCount > 0) {
+      const err = new Error("Termine les séances précédentes avant celle-ci");
+      err.status = 400;
+      throw err;
+    }
 
     const updated = await tx.tache.updateMany({
       where: { id, status: { not: "fait" } },
@@ -45,7 +58,7 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
       throw err;
     }
 
-    const { durationMinutes, selfRating, focusPoint } = parsed.data;
+    const { durationMinutes, selfRating, focusPoint, distanceKm, timeSeconds } = parsed.data;
     const effectiveDuration = durationMinutes ?? tache.estDurationMin ?? 30;
     const effectiveDifficulty = gam.taskDifficulty(tache.category);
     const xpEarned = gam.sessionXp({
@@ -54,10 +67,30 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
       hasFeedback: false,
     });
     const next = gam.applyXpToDomaine(tache.objectif.domaine, xpEarned);
+    const predictionSeconds = training.predictTimeSeconds({
+      distanceKm,
+      timeSeconds,
+      targetDistanceKm: training.targetDistanceForObjective(tache.objectif),
+    });
+    const remainingTasks = await tx.tache.findMany({
+      where: {
+        objectifId: tache.objectifId,
+        orderIndex: { gt: tache.orderIndex },
+        status: "a_faire",
+      },
+    });
+    const taskUpdates = training.recalibrateRemainingTasks(remainingTasks, {
+      selfRating,
+      predictionSeconds,
+      targetTimeSeconds: tache.objectif.targetTimeSeconds,
+      vmaKmh: tache.objectif.vmaKmh,
+    });
 
     const session = await tx.session.create({
       data: {
         durationMinutes: effectiveDuration,
+        distanceKm: distanceKm ?? null,
+        timeSeconds: timeSeconds ?? null,
         difficulty: effectiveDifficulty,
         selfRating: selfRating ?? null,
         focusPoint: focusPoint ?? tache.title,
@@ -66,6 +99,16 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
         objectifId: tache.objectifId,
       },
     });
+
+    if (predictionSeconds != null) {
+      await tx.objectif.update({
+        where: { id: tache.objectifId },
+        data: { predictionSeconds },
+      });
+    }
+    for (const update of taskUpdates) {
+      await tx.tache.update({ where: { id: update.id }, data: update.data });
+    }
 
     const domaine = await tx.domaine.update({
       where: { id: tache.objectif.domaineId },
@@ -83,6 +126,8 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
       tache: completedTache,
       session,
       xpEarned,
+      predictionSeconds,
+      adjustedTasks: taskUpdates.length,
       leveledUp: next.leveledUp,
       newLevels: next.newLevels,
       domaine,
@@ -92,7 +137,7 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
   res.status(201).json(result);
 }));
 
-// PATCH /taches/:id — modifier (ex : status "fait")
+// PATCH /taches/:id — modifier uniquement le contenu éditorial.
 router.patch("/:id", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = TacheUpdateIn.safeParse(req.body);

@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { setSession } from "../lib/auth";
 import { Card, Button, Field, Input, ErrorMsg } from "../components/ui";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // ?session=expired est ajouté par le wrapper API quand un 401 nous a déconnectés.
+  const sessionExpired = searchParams.get("session") === "expired";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -63,6 +66,11 @@ export default function Login() {
             <h1 className="text-2xl font-black text-[#18212a]">Running Club</h1>
             <p className="text-sm font-medium text-[#7d705e]">Connecte-toi à ton espace running</p>
           </div>
+          {sessionExpired && (
+            <div className="mb-4 rounded-lg border-2 border-[#d89b2b]/40 bg-[#fdf2d8] px-3 py-2 text-center text-sm font-black text-[#7a5a17]">
+              Votre session a expiré. Veuillez vous reconnecter.
+            </div>
+          )}
           <form onSubmit={onSubmit} className="space-y-4">
             <Field label="Email">
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

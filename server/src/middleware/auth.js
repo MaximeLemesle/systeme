@@ -1,5 +1,5 @@
 // Middleware d'authentification : vérifie le header "Authorization: Bearer <jwt>"
-// et attache req.userId. Renvoie 401 si absent/invalide.
+// et attache l'identité signée. Renvoie 401 si absent/invalide.
 const jwt = require("jsonwebtoken");
 const { env } = require("../config/env");
 
@@ -12,6 +12,7 @@ function auth(req, res, next) {
   try {
     const payload = jwt.verify(token, env.JWT_SECRET);
     req.userId = payload.userId;
+    req.userRole = payload.role;
     next();
   } catch {
     return res.status(401).json({ error: "Token invalide" });

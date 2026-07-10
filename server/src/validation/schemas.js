@@ -1,6 +1,8 @@
 const { z } = require("zod");
 
 const Difficulty = z.enum(["facile", "moyen", "difficile"]);
+const RunnerLevel = z.enum(["débutant", "intermédiaire", "avancé"]);
+const ObjectiveType = z.enum(["endurance", "chrono", "distance", "regularite"]);
 const RequiredString = (field) =>
   z.string({
     required_error: `${field} est requis`,
@@ -14,55 +16,37 @@ const RequiredNumber = (field) =>
 
 // ---------- Schémas de sortie IA (sorties LLM en mode JSON) ----------
 
-// NB : on utilise z.coerce.number() car les LLM renvoient parfois les nombres
-// sous forme de chaînes ("1" au lieu de 1) — la coercition évite un retry inutile.
-const SuggestionsOut = z.object({
-  objectifs: z
-    .array(
-      z.object({
-        title: z.string().min(3),
-        metric_label: z.string(),
-        unit: z.string().nullable().optional(),
-        target_value: z.coerce.number(),
-        difficulty: Difficulty,
-        deadline_suggeree: z.string(), // ISO "YYYY-MM-DD"
-      })
-    )
-    .min(3)
-    .max(6),
-});
-
-const RefineOut = z.object({
-  title: z.string().min(3),
-  metric_label: z.string(),
-  unit: z.string().nullable().optional(),
-  start_value: z.coerce.number().nullable().optional(),
-  target_value: z.coerce.number(),
+const IntakeObjectiveOut = z.object({
+  title: z.string().min(3).max(150),
+  description: z.string().nullable().optional(),
+  metricLabel: z.string().min(1).max(100),
+  unit: z.string().max(30).nullable().optional(),
+  targetValue: z.coerce.number().positive(),
   difficulty: Difficulty,
-  deadline: z.string(), // ISO
-  faisabilite: z.string(), // courte note réaliste
+  niveau: RunnerLevel,
+  objectiveType: ObjectiveType,
+  deadline: z.string().nullable().optional(),
+  trainingFrequency: z.coerce.number().int().min(2).max(5),
+  planWeeks: z.coerce.number().int().min(5).max(20),
+  vmaKmh: z.coerce.number().min(8).max(25).nullable().optional(),
+  targetDistanceKm: z.coerce.number().positive().max(100).nullable().optional(),
+  targetTimeSeconds: z.coerce.number().int().positive().max(86400).nullable().optional(),
 });
 
-// Plan d'action : étapes ordonnées avec une catégorie optionnelle.
-// Les catégories running restent supportées pour le domaine "Course à pied".
-const TrainingCategory = z
-  .enum(["general", "footing", "fractionne", "sortie_longue", "recuperation", "objectif"])
-  .catch("general");
-
-const TasksOut = z.object({
-  taches: z
-    .array(
-      z.object({
-        order_index: z.coerce.number().int(),
-        title: z.string().min(2),
-        description: z.string().optional().default(""),
-        category: TrainingCategory.optional().default("general"),
-        est_duration_min: z.coerce.number().int().nullable().optional(),
-      })
-    )
-    .min(3)
-    .max(20),
-});
+const IntakeOut = z
+  .object({
+    complete: z.boolean(),
+    question: z.string().min(3).nullable().optional(),
+    objectif: IntakeObjectiveOut.nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.complete && !data.objectif) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "L'objectif final est manquant" });
+    }
+    if (!data.complete && !data.question) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La question suivante est manquante" });
+    }
+  });
 
 // ---------- Schémas d'entrée des endpoints qui écrivent ----------
 
@@ -83,18 +67,6 @@ const LoginIn = z.object({
   password: RequiredString("Le mot de passe").min(1, "Le mot de passe est requis"),
 });
 
-const DomaineIn = z.object({
-  name: RequiredString("Le nom du domaine")
-    .trim()
-    .min(1, "Le nom du domaine est requis")
-    .max(100, "Le nom du domaine ne peut pas dépasser 100 caractères"),
-  description: z
-    .string()
-    .max(1000, "La description ne peut pas dépasser 1000 caractères")
-    .optional()
-    .nullable(),
-});
-
 const ObjectifIn = z.object({
   title: RequiredString("Le titre")
     .trim()
@@ -111,8 +83,13 @@ const ObjectifIn = z.object({
   targetValue: RequiredNumber("La valeur cible"),
   currentValue: z.number().optional().nullable(),
   difficulty: Difficulty.default("moyen"),
-  niveau: z.string().optional().nullable(),
-  objectiveType: z.string().optional().nullable(),
+  niveau: RunnerLevel.optional().nullable(),
+  objectiveType: ObjectiveType.optional().nullable(),
+  trainingFrequency: z.number().int().min(2).max(5).optional().default(3),
+  planWeeks: z.number().int().min(5).max(20).optional().default(8),
+  vmaKmh: z.number().min(8).max(25).optional().nullable(),
+  targetDistanceKm: z.number().positive().max(100).optional().nullable(),
+  targetTimeSeconds: z.number().int().positive().max(86400).optional().nullable(),
   deadline: z.string().optional().nullable(), // "YYYY-MM-DD"
   aiRefined: z.boolean().optional().default(false),
 });
@@ -126,8 +103,6 @@ const ObjectifUpdateIn = z.object({
     .optional(),
   description: z.string().optional().nullable(),
   currentValue: z.number().optional().nullable(),
-  difficulty: Difficulty.optional(),
-  status: z.enum(["en_cours", "valide", "abandonne"]).optional(),
 });
 
 const TacheUpdateIn = z.object({
@@ -138,15 +113,27 @@ const TacheUpdateIn = z.object({
     .max(150, "Le titre de la tâche ne peut pas dépasser 150 caractères")
     .optional(),
   description: z.string().optional().nullable(),
-  status: z.enum(["a_faire", "en_cours", "fait"]).optional(),
 });
+
+const PerformanceFields = {
+  distanceKm: z.number().positive().max(100).optional().nullable(),
+  timeSeconds: z.number().int().positive().max(86400).optional().nullable(),
+};
+
+function requireCompletePerformance(data, ctx) {
+  if ((data.distanceKm == null) !== (data.timeSeconds == null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "La distance et le temps de course doivent être fournis ensemble",
+    });
+  }
+}
 
 const SessionIn = z.object({
   durationMinutes: RequiredNumber("La durée")
     .int("La durée doit être un nombre entier de minutes")
     .positive("La durée doit être supérieure à 0")
     .max(240, "La durée ne peut pas dépasser 240 minutes par session"),
-  difficulty: Difficulty.default("moyen"),
   selfRating: z
     .number()
     .int("L'auto-évaluation doit être un entier")
@@ -159,8 +146,8 @@ const SessionIn = z.object({
     .max(255, "Le point travaillé ne peut pas dépasser 255 caractères")
     .optional()
     .nullable(),
-  tacheId: z.number().int().optional().nullable(),
-});
+  ...PerformanceFields,
+}).superRefine(requireCompletePerformance);
 
 const FeedbackIn = z.object({
   notes: z.string().optional().nullable(),
@@ -168,17 +155,17 @@ const FeedbackIn = z.object({
   correction: z.string().optional().nullable(),
 });
 
-const RefineIn = z.object({
-  objectifBrut: RequiredString("L'objectif").min(1, "Décris ton objectif avant de le raffiner"),
-  domaineId: z.number().int().optional().nullable(),
-  domaine: z.string().optional().nullable(),
-  niveau: z.string().optional().nullable(),
-  objectiveType: z.string().optional().nullable(),
-});
-
-const ObjectiveSuggestIn = z.object({
-  niveau: z.string().optional().nullable(),
-  objectiveType: z.string().optional().nullable(),
+const IntakeIn = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().trim().min(1).max(1000),
+      })
+    )
+    .min(1)
+    .max(9),
+  niveau: RunnerLevel.optional().nullable(),
 });
 
 const CompleteTacheIn = z.object({
@@ -201,22 +188,20 @@ const CompleteTacheIn = z.object({
     .max(255, "Le point travaillé ne peut pas dépasser 255 caractères")
     .optional()
     .nullable(),
-});
+  ...PerformanceFields,
+}).superRefine(requireCompletePerformance);
 
 module.exports = {
   Difficulty,
-  SuggestionsOut,
-  RefineOut,
-  TasksOut,
+  RunnerLevel,
+  IntakeOut,
   RegisterIn,
   LoginIn,
-  DomaineIn,
   ObjectifIn,
   ObjectifUpdateIn,
   TacheUpdateIn,
   CompleteTacheIn,
   SessionIn,
   FeedbackIn,
-  RefineIn,
-  ObjectiveSuggestIn,
+  IntakeIn,
 };

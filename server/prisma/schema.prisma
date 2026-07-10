@@ -12,6 +12,7 @@ model User {
   username     String    @unique
   email        String    @unique
   passwordHash String    @map("password_hash")
+  role         String    @default("user") // user | admin
   createdAt    DateTime  @default(now()) @map("created_at")
   domaines     Domaine[]
 
@@ -28,7 +29,7 @@ model Domaine {
   totalMinutes  Int        @default(0) @map("total_minutes")
   status        String     @default("actif") // actif | en_pause | maitrise
   createdAt     DateTime   @default(now()) @map("created_at")
-  userId        Int        @map("user_id")
+  userId        Int        @unique @map("user_id")
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   objectifs     Objectif[]
 
@@ -36,47 +37,57 @@ model Domaine {
 }
 
 model Objectif {
-  id           Int       @id @default(autoincrement()) @map("id_objectif")
-  title        String
-  description  String?
-  rawInput     String?   @map("raw_input") // objectif brut saisi par l'utilisateur
-  metricLabel  String    @map("metric_label")
-  unit         String?
-  startValue   Decimal?  @map("start_value")
-  targetValue  Decimal   @map("target_value")
-  currentValue Decimal?  @map("current_value")
-  difficulty   String    @default("moyen") // facile | moyen | difficile
-  niveau       String?   // débutant | intermédiaire | avancé (niveau du coureur)
-  objectiveType String?  @map("objective_type") // endurance | chrono | distance | regularite
-  deadline     DateTime?
-  status       String    @default("en_cours") // en_cours | valide | abandonne
-  xpReward     Int       @default(1000) @map("xp_reward")
-  aiRefined    Boolean   @default(false) @map("ai_refined")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  validatedAt  DateTime? @map("validated_at")
-  domaineId    Int       @map("domaine_id")
-  domaine      Domaine   @relation(fields: [domaineId], references: [id], onDelete: Cascade)
-  taches       Tache[]
-  sessions     Session[]
+  id                Int       @id @default(autoincrement()) @map("id_objectif")
+  title             String
+  description       String?
+  rawInput          String?   @map("raw_input") // objectif brut saisi par l'utilisateur
+  metricLabel       String    @map("metric_label")
+  unit              String?
+  startValue        Decimal?  @map("start_value")
+  targetValue       Decimal   @map("target_value")
+  currentValue      Decimal?  @map("current_value")
+  difficulty        String    @default("moyen") // facile | moyen | difficile
+  niveau            String? // débutant | intermédiaire | avancé (niveau du coureur)
+  objectiveType     String?   @map("objective_type") // endurance | chrono | distance | regularite
+  trainingFrequency Int       @default(3) @map("training_frequency")
+  planWeeks         Int       @default(8) @map("plan_weeks")
+  vmaKmh            Decimal?  @map("vma_kmh")
+  targetDistanceKm  Decimal?  @map("target_distance_km")
+  targetTimeSeconds Int?      @map("target_time_seconds")
+  predictionSeconds Int?      @map("prediction_seconds")
+  deadline          DateTime?
+  status            String    @default("en_cours") // en_cours | valide | abandonne
+  xpReward          Int       @default(1000) @map("xp_reward")
+  aiRefined         Boolean   @default(false) @map("ai_refined")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  validatedAt       DateTime? @map("validated_at")
+  domaineId         Int       @map("domaine_id")
+  domaine           Domaine   @relation(fields: [domaineId], references: [id], onDelete: Cascade)
+  taches            Tache[]
+  sessions          Session[]
 
   @@map("objectif")
 }
 
 model Tache {
-  id             Int       @id @default(autoincrement()) @map("id_tache")
-  title          String
-  description    String?
-  orderIndex     Int       @default(0) @map("order_index")
-  estDurationMin Int?      @map("est_duration_min")
-  category       String?   // footing | fractionne | sortie_longue | recuperation | objectif
-  status         String    @default("a_faire") // a_faire | en_cours | fait
-  isAiGenerated  Boolean   @default(true) @map("is_ai_generated")
-  completedAt    DateTime? @map("completed_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  objectifId     Int       @map("objectif_id")
-  objectif       Objectif  @relation(fields: [objectifId], references: [id], onDelete: Cascade)
-  sessions       Session[]
+  id               Int       @id @default(autoincrement()) @map("id_tache")
+  title            String
+  description      String?
+  orderIndex       Int       @default(0) @map("order_index")
+  weekIndex        Int       @default(1) @map("week_index")
+  estDurationMin   Int?      @map("est_duration_min")
+  intensityPercent Int?      @map("intensity_percent")
+  distanceKm       Decimal?  @map("distance_km")
+  category         String? // 8 types définis dans services/training-plan.js
+  status           String    @default("a_faire") // a_faire | en_cours | fait
+  isAiGenerated    Boolean   @default(false) @map("is_ai_generated")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  objectifId       Int       @map("objectif_id")
+  objectif         Objectif  @relation(fields: [objectifId], references: [id], onDelete: Cascade)
+  sessions         Session[]
 
+  @@unique([objectifId, orderIndex])
   @@map("tache")
 }
 
@@ -84,6 +95,8 @@ model Session {
   id              Int       @id @default(autoincrement()) @map("id_session")
   focusPoint      String?   @map("focus_point")
   durationMinutes Int       @map("duration_minutes")
+  distanceKm      Decimal?  @map("distance_km")
+  timeSeconds     Int?      @map("time_seconds")
   difficulty      String    @default("moyen") // facile | moyen | difficile
   selfRating      Int?      @map("self_rating") // 1..5 (auto-évaluation)
   xpEarned        Int       @default(0) @map("xp_earned")

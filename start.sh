@@ -112,7 +112,8 @@ fi
 
 [ -f server/.env ] || { echo "  → Création de server/.env"; cp server/.env.example server/.env; }
 [ -f client/.env ] || { echo "  → Création de client/.env"; cp client/.env.example client/.env; }
-[ -f server/prisma/dev.db ] || { echo "  → Création de la base de données…"; ( cd server && npx prisma migrate deploy ); }
+echo "  → Mise à jour de la base et des comptes de démonstration…"
+( cd server && npx prisma migrate deploy && npm run db:seed )
 
 # --- 1) Ollama ---
 if is_up "$OLLAMA_TAGS"; then

@@ -66,10 +66,10 @@ export function Spinner({ className = "" }) {
 
 // Messages qui tournent pendant la génération IA — l'attente paraît plus courte.
 const AI_TIPS = [
-  "La forge IA assemble tes checkpoints…",
-  "Calibrage de la difficulté…",
-  "Traçage de la route vers l'objectif…",
-  "Derniers ajustements du parchemin…",
+  "Analyse de la distance et de l'échéance…",
+  "Vérification de la fréquence disponible…",
+  "Structuration de l'objectif SMART…",
+  "Préparation de la prochaine question…",
 ];
 
 // Bandeau de chargement pour les appels IA (modèle local : ~15-30 s).

@@ -1,11 +1,11 @@
-// Routes /objectifs : détail, modif, validation, génération IA des tâches, sessions.
+// Routes /objectifs : détail, modification, cycle de vie, plan et sessions.
 const express = require("express");
 const prisma = require("../prisma");
 const auth = require("../middleware/auth");
 const { findObjectif } = require("../access");
 const { ObjectifUpdateIn, SessionIn } = require("../validation/schemas");
-const ai = require("../services/ai");
 const gam = require("../services/gamification");
+const training = require("../services/training-plan");
 const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
@@ -50,6 +50,21 @@ router.delete("/:id", asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// PATCH /objectifs/:id/abandon — abandon explicite, sans gain d'XP.
+router.patch("/:id/abandon", asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  const objectif = await findObjectif(req.userId, id);
+  if (!objectif) return res.status(404).json({ error: "Objectif introuvable" });
+  if (objectif.status !== "en_cours") {
+    return res.status(400).json({ error: "Seul un objectif en cours peut être abandonné" });
+  }
+  const abandoned = await prisma.objectif.update({
+    where: { id },
+    data: { status: "abandonne" },
+  });
+  res.json(abandoned);
+}));
+
 // PATCH /objectifs/:id/validate — valider → gros gain d'XP au domaine
 router.patch("/:id/validate", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
@@ -64,6 +79,16 @@ router.patch("/:id/validate", asyncHandler(async (req, res) => {
   // Transaction interactive : la double validation simultanée est bloquée par le
   // updateMany conditionnel, et l'XP est lue/écrite atomiquement.
   const result = await prisma.$transaction(async (tx) => {
+    const taskCount = await tx.tache.count({ where: { objectifId: id } });
+    const remainingCount = await tx.tache.count({
+      where: { objectifId: id, status: { not: "fait" } },
+    });
+    if (taskCount === 0 || remainingCount > 0) {
+      const err = new Error("Toutes les séances du plan doivent être terminées");
+      err.status = 400;
+      throw err;
+    }
+
     const updated = await tx.objectif.updateMany({
       where: { id, status: "en_cours" },
       data: { status: "valide", validatedAt: new Date() },
@@ -99,7 +124,7 @@ router.patch("/:id/validate", asyncHandler(async (req, res) => {
   });
 }));
 
-// POST /objectifs/:id/taches/generate — IA : génère + persiste le plan de tâches
+// POST /objectifs/:id/taches/generate — génère le plan déterministe et le persiste.
 router.post("/:id/taches/generate", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const objectif = await findObjectif(req.userId, id);
@@ -116,33 +141,16 @@ router.post("/:id/taches/generate", asyncHandler(async (req, res) => {
     return res.json({ taches: existing, reused: true });
   }
 
-  const domaine = await prisma.domaine.findUnique({ where: { id: objectif.domaineId } });
-
-  let seances;
-  try {
-    seances = await ai.generateTasks({
-      domaine,
-      objectif: {
-        title: objectif.title,
-        metric_label: objectif.metricLabel,
-        target_value: Number(objectif.targetValue),
-        difficulty: objectif.difficulty,
-        objective_type: objectif.objectiveType,
-      },
-      niveau: objectif.niveau || "débutant",
-    });
-  } catch (e) {
-    return res.status(502).json({ error: `IA indisponible: ${e.message}` });
-  }
+  const seances = training.generateTrainingPlan({
+    weeks: objectif.planWeeks,
+    frequency: objectif.trainingFrequency,
+    niveau: objectif.niveau || "débutant",
+    vmaKmh: objectif.vmaKmh == null ? null : Number(objectif.vmaKmh),
+  });
 
   await prisma.tache.createMany({
     data: seances.map((s) => ({
-      title: s.title,
-      description: s.description || null,
-      orderIndex: s.order_index,
-      estDurationMin: s.est_duration_min ?? null,
-      category: s.category || null,
-      isAiGenerated: true,
+      ...s,
       objectifId: id,
     })),
   });
@@ -180,82 +188,138 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Impossible de logger une session sur un objectif terminé" });
   }
 
-  const { durationMinutes, difficulty, selfRating, focusPoint, tacheId } = parsed.data;
+  const {
+    durationMinutes,
+    selfRating,
+    focusPoint,
+    distanceKm,
+    timeSeconds,
+  } = parsed.data;
 
   // Transaction interactive : lecture + calcul + écritures atomiques (pas d'XP perdue en concurrence).
   const result = await prisma.$transaction(async (tx) => {
     // Revérifie le statut DANS la transaction (l'objectif peut avoir été validé entre-temps).
-    const stillActive = await tx.objectif.findFirst({ where: { id, status: "en_cours" } });
+    const stillActive = await tx.objectif.findFirst({
+      where: { id, status: "en_cours" },
+      include: { domaine: true },
+    });
     if (!stillActive) {
       const err = new Error("Impossible de logger une session sur un objectif terminé");
       err.status = 400;
       throw err;
     }
 
-    // Anti-triche : si la session est liée à une tâche, la difficulté vient de la
-    // catégorie de la tâche (comme /taches/:id/complete), pas du client.
-    let effectiveDifficulty = difficulty;
-    if (tacheId) {
-      const tache = await tx.tache.findFirst({
-        where: { id: tacheId, objectifId: id, objectif: { domaine: { userId: req.userId } } },
-      });
-      if (!tache) {
-        const err = new Error("Tâche liée invalide pour cet objectif");
-        err.status = 400;
-        throw err;
-      }
-      effectiveDifficulty = gam.taskDifficulty(tache.category);
-    }
-
-    // Le serveur calcule l'XP — le client n'envoie JAMAIS de montant d'XP.
+    // Une sortie libre a une difficulté fixe : ni la difficulté ni l'XP ne viennent du client.
+    const effectiveDifficulty = "moyen";
     const xpEarned = gam.sessionXp({
       durationMinutes,
       difficulty: effectiveDifficulty,
       hasFeedback: false,
     });
 
-    const domaine = await tx.domaine.findUnique({ where: { id: objectif.domaineId } });
-    const next = gam.applyXpToDomaine(domaine, xpEarned);
+    const predictionSeconds = training.predictTimeSeconds({
+      distanceKm,
+      timeSeconds,
+      targetDistanceKm: training.targetDistanceForObjective(stillActive),
+    });
+    const remainingTasks = await tx.tache.findMany({
+      where: {
+        objectifId: id,
+        status: "a_faire",
+      },
+    });
+    const taskUpdates = training.recalibrateRemainingTasks(remainingTasks, {
+      selfRating,
+      predictionSeconds,
+      targetTimeSeconds: stillActive.targetTimeSeconds,
+      vmaKmh: stillActive.vmaKmh,
+    });
+    const next = gam.applyXpToDomaine(stillActive.domaine, xpEarned);
 
     const session = await tx.session.create({
       data: {
         durationMinutes,
+        distanceKm: distanceKm ?? null,
+        timeSeconds: timeSeconds ?? null,
         difficulty: effectiveDifficulty,
         selfRating: selfRating ?? null,
         focusPoint: focusPoint ?? null,
-        tacheId: tacheId ?? null,
         xpEarned,
         objectifId: id,
       },
     });
+    if (predictionSeconds != null) {
+      await tx.objectif.update({ where: { id }, data: { predictionSeconds } });
+    }
+    for (const update of taskUpdates) {
+      await tx.tache.update({ where: { id: update.id }, data: update.data });
+    }
     const updatedDomaine = await tx.domaine.update({
-      where: { id: domaine.id },
+      where: { id: stillActive.domaine.id },
       data: {
         level: next.level,
         totalXp: next.totalXp,
         xpToNextLevel: next.xpToNextLevel,
-        totalMinutes: domaine.totalMinutes + durationMinutes,
+        totalMinutes: stillActive.domaine.totalMinutes + durationMinutes,
       },
     });
 
-    return { session, xpEarned, leveledUp: next.leveledUp, newLevels: next.newLevels, domaine: updatedDomaine };
+    return {
+      session,
+      xpEarned,
+      predictionSeconds,
+      adjustedTasks: taskUpdates.length,
+      leveledUp: next.leveledUp,
+      newLevels: next.newLevels,
+      domaine: updatedDomaine,
+    };
   });
 
   res.status(201).json(result);
 }));
 
-// GET /objectifs/:id/sessions — historique
+// GET /objectifs/:id/sessions?page=1&limit=10 — historique paginé.
+// Pagination + select minimal : la réponse ne grossit plus avec le nombre de sessions.
 router.get("/:id/sessions", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   if (!(await findObjectif(req.userId, id))) {
     return res.status(404).json({ error: "Objectif introuvable" });
   }
-  const sessions = await prisma.session.findMany({
-    where: { objectifId: id },
-    orderBy: { createdAt: "desc" },
-    include: { feedback: true },
+
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
+  const skip = (page - 1) * limit;
+
+  const [total, data] = await Promise.all([
+    prisma.session.count({ where: { objectifId: id } }),
+    prisma.session.findMany({
+      where: { objectifId: id },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+      // On ne renvoie que les champs affichés, pas la relation complète.
+      select: {
+        id: true,
+        durationMinutes: true,
+        distanceKm: true,
+        timeSeconds: true,
+        difficulty: true,
+        selfRating: true,
+        xpEarned: true,
+        createdAt: true,
+        tacheId: true,
+        feedback: { select: { id: true, notes: true, correction: true } },
+      },
+    }),
+  ]);
+
+  res.json({
+    data,
+    page,
+    limit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
   });
-  res.json(sessions);
 }));
 
 module.exports = router;

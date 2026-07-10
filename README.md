@@ -82,8 +82,6 @@ L'IA n'élabore pas directement le plan d'entraînement. Elle intervient seuleme
 
 La sortie du LLM est validée avec Zod. En cas de JSON invalide, le backend effectue un seul nouvel essai, puis renvoie une erreur `502`. Le plan est ensuite généré par du code déterministe afin d'obtenir un résultat testable, reproductible et explicable.
 
-Voir également `CONTEXT.md` et `docs/adr/`.
-
 ## Modèle de données
 
 Le MCD, le MLD, les cardinalités, clés étrangères et règles de suppression sont documentés dans [`docs/mcd-mld.md`](docs/mcd-mld.md).
@@ -99,12 +97,13 @@ Toutes les routes privées nécessitent `Authorization: Bearer <token>`.
 | GET | `/domaines` | User | renvoie le domaine running |
 | GET | `/domaines/:id/progression` | User | progression, objectif et séances |
 | POST | `/domaines/:id/objectifs` | User | crée un objectif |
-| PATCH | `/objectifs/:id` | User | modifie titre et description |
+| PUT | `/objectifs/:id` | User | modifie titre et description |
+| PATCH | `/objectifs/:id/abandon` | User | abandonne l'objectif sans XP |
 | PATCH | `/objectifs/:id/validate` | User | valide l'objectif et attribue l'XP |
 | POST | `/ai/objectifs/intake` | User | intake conversationnel IA |
 | POST | `/objectifs/:id/taches/generate` | User | génère le plan déterministe |
 | POST | `/taches/:id/complete` | User | termine une séance et calcule l'XP |
-| GET | `/sessions` | User | historique des sessions |
+| GET | `/objectifs/:id/sessions` | User | historique des sessions |
 | POST | `/sessions/:id/feedback` | User | ajoute un feedback |
 | GET | `/admin/users` | Admin | liste utilisateurs et statistiques |
 
@@ -140,11 +139,8 @@ ollama pull llama3.2:3b
 ```env
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="change-me"
-AI_PROVIDER="ollama"
 OLLAMA_URL="http://localhost:11434"
 OLLAMA_MODEL="llama3.2:3b"
-ADMIN_EMAIL="admin@example.com"
-ADMIN_PASSWORD="change-me-now"
 PORT=4000
 HOST="127.0.0.1"
 ```
@@ -185,6 +181,16 @@ npm run dev
 
 Application : `http://localhost:5173`.
 
+## Comptes de test
+
+Le seed est idempotent et crée les comptes suivants, tous avec le mot de passe `Test123!` et le rôle `user` :
+
+| Nom | Email | Objectif principal | Niveau de départ |
+|---|---|---|---|
+| Lucas Martin | `lucas@test.local` | Courir 10 km en moins de 50 minutes | Intermédiaire |
+| Emma Dupont | `emma@test.local` | Courir son premier marathon | Débutante sur longue distance |
+| Hugo Bernard | `hugo@test.local` | Courir 5 km en moins de 25 minutes | Débutant régulier |
+
 ## Vérifications
 
 ```bash
@@ -204,12 +210,11 @@ Les écrans attendus et leur flux de données sont décrits dans [`docs/wirefram
 ## Limites et pistes d'amélioration
 
 - Le rôle reste figé dans le JWT pendant sa durée de validité, actuellement sept jours.
-- Le schéma conserve des colonnes issues de l'ancien système multi-domaines.
 - Le plan ne possède pas encore de calendrier avec des dates réelles.
 - La formule de Riegel est une estimation simplifiée.
 - `CoursePage.jsx` reste volumineux et devrait être découpé.
 - SQLite convient à la démonstration, mais PostgreSQL serait préférable en production.
-- Le générateur de plan devrait disposer d'une suite de tests dédiée.
+- La prédiction nécessite une distance et un temps réellement enregistrés.
 - Les captures du README doivent être produites depuis l'application locale finale.
 
 ## Analyse critique

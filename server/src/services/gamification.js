@@ -4,14 +4,7 @@
 const XP_PER_MIN = 2;
 const DIFFICULTY_MULT = { facile: 1.0, moyen: 1.25, difficile: 1.5 };
 const VALIDATION_XP = { facile: 500, moyen: 1000, difficile: 2000 };
-const TASK_CATEGORY_DIFFICULTY = {
-  general: "moyen",
-  footing: "facile",
-  fractionne: "difficile",
-  sortie_longue: "moyen",
-  recuperation: "facile",
-  objectif: "difficile",
-};
+const { difficultyForCategory } = require("./training-plan");
 
 // XP d'une session
 function sessionXp({ durationMinutes, difficulty, hasFeedback }) {
@@ -26,7 +19,7 @@ function validationXp(difficulty) {
 }
 
 function taskDifficulty(category) {
-  return TASK_CATEGORY_DIFFICULTY[category] || "moyen";
+  return difficultyForCategory(category);
 }
 
 // Seuil du niveau courant

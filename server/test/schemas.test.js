@@ -1,64 +1,98 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { SuggestionsOut, RefineOut, TasksOut } = require("../src/validation/schemas");
+const { IntakeOut, ObjectifIn, CompleteTacheIn } = require("../src/validation/schemas");
+const { intakeObjective } = require("../src/services/ai");
 
-test("SuggestionsOut accepte les nombres renvoyés sous forme de chaînes par le LLM", () => {
-  const parsed = SuggestionsOut.parse({
-    objectifs: [
-      {
-        title: "Publier une app simple",
-        metric_label: "app",
-        unit: null,
-        target_value: "1",
-        difficulty: "moyen",
-        deadline_suggeree: "2026-07-30",
-      },
-      {
-        title: "Créer un prototype",
-        metric_label: "prototype",
-        unit: null,
-        target_value: 1,
-        difficulty: "facile",
-        deadline_suggeree: "2026-07-15",
-      },
-      {
-        title: "Livrer une version test",
-        metric_label: "version",
-        unit: null,
-        target_value: 1,
-        difficulty: "difficile",
-        deadline_suggeree: "2026-08-15",
-      },
-    ],
+test("IntakeOut accepte un objectif running complet avec nombres textuels", () => {
+  const parsed = IntakeOut.parse({
+    complete: true,
+    question: null,
+    objectif: {
+      title: "Courir 10 km en moins de 50 minutes",
+      metricLabel: "distance",
+      unit: "km",
+      targetValue: "10",
+      difficulty: "moyen",
+      niveau: "intermédiaire",
+      objectiveType: "chrono",
+      deadline: "2026-10-01",
+      trainingFrequency: "3",
+      planWeeks: "10",
+      vmaKmh: null,
+      targetDistanceKm: "10",
+      targetTimeSeconds: "3000",
+    },
   });
-
-  assert.equal(parsed.objectifs[0].target_value, 1);
+  assert.equal(parsed.objectif.targetTimeSeconds, 3000);
+  assert.equal(parsed.objectif.planWeeks, 10);
 });
 
-test("RefineOut valide un objectif SMART minimal", () => {
-  const parsed = RefineOut.parse({
-    title: "Courir 5 km sans pause",
-    metric_label: "distance",
-    unit: "km",
-    start_value: null,
-    target_value: "5",
-    difficulty: "moyen",
-    deadline: "2026-08-01",
-    faisabilite: "Objectif réaliste avec une progression régulière.",
-  });
-
-  assert.equal(parsed.target_value, 5);
+test("IntakeOut refuse un résultat incomplet sans question", () => {
+  assert.throws(() => IntakeOut.parse({ complete: false, question: null, objectif: null }));
 });
 
-test("TasksOut force une catégorie générique si le LLM sort une catégorie inconnue", () => {
-  const parsed = TasksOut.parse({
-    taches: [
-      { order_index: 1, title: "Étape 1", description: "", category: "foo", est_duration_min: "30" },
-      { order_index: 2, title: "Étape 2", description: "", category: "general", est_duration_min: 30 },
-      { order_index: 3, title: "Étape 3", description: "", est_duration_min: null },
-    ],
-  });
+test("ObjectifIn borne fréquence et durée du plan", () => {
+  const base = { title: "Courir 5 km", metricLabel: "distance", targetValue: 5 };
+  assert.equal(ObjectifIn.safeParse({ ...base, trainingFrequency: 1 }).success, false);
+  assert.equal(ObjectifIn.safeParse({ ...base, planWeeks: 21 }).success, false);
+  assert.equal(ObjectifIn.safeParse({ ...base, trainingFrequency: 3, planWeeks: 8 }).success, true);
+});
 
-  assert.equal(parsed.taches[0].category, "general");
-  assert.equal(parsed.taches[0].est_duration_min, 30);
+test("CompleteTacheIn exige distance et temps ensemble", () => {
+  assert.equal(CompleteTacheIn.safeParse({ distanceKm: 5 }).success, false);
+  assert.equal(CompleteTacheIn.safeParse({ timeSeconds: 1500 }).success, false);
+  assert.equal(CompleteTacheIn.safeParse({ distanceKm: 5, timeSeconds: 1500 }).success, true);
+});
+
+test("l'intake accepte une enveloppe omise par Ollama", async () => {
+  const previousFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    async json() {
+      return {
+        message: {
+          content: JSON.stringify({
+            title: "Courir 10 km",
+            metricLabel: "distance",
+            unit: "km",
+            targetValue: 10,
+            difficulty: "moyen",
+            niveau: "intermédiaire",
+            objectiveType: "distance",
+            trainingFrequency: 3,
+            planWeeks: 8,
+          }),
+        },
+      };
+    },
+  });
+  try {
+    const result = await intakeObjective({ messages: [{ role: "user", content: "10 km" }] });
+    assert.equal(result.complete, true);
+    assert.equal(result.objectif.title, "Courir 10 km");
+  } finally {
+    global.fetch = previousFetch;
+  }
+});
+
+test("l'intake normalise difficulté et nombres écrits par Ollama", async () => {
+  const previousFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    async json() {
+      return { message: { content: JSON.stringify({ complete: true, objectif: {
+        title: "Courir 10 km", metricLabel: "distance", unit: "km", targetValue: "10 km",
+        difficulty: "intermédiaire", niveau: "intermédiaire", objectiveType: "distance",
+        trainingFrequency: "3 séances par semaine", planWeeks: "8 semaines",
+      } }) } };
+    },
+  });
+  try {
+    const result = await intakeObjective({ messages: [{ role: "user", content: "10 km" }] });
+    assert.equal(result.objectif.difficulty, "moyen");
+    assert.equal(result.objectif.trainingFrequency, 3);
+    assert.equal(result.objectif.planWeeks, 8);
+  } finally {
+    global.fetch = previousFetch;
+  }
 });
