@@ -7,7 +7,7 @@ docs {
   1. Lance le backend avec `./start.sh`.
   2. Sélectionne l'environnement **Local**.
   3. Exécute **Auth → Register** ou **Login** : le JWT est stocké dans `token`.
-  4. Pour les routes admin, connecte-toi avec le compte seedé puis stocke son JWT dans `adminToken`.
+  4. Pour les routes admin, utilise un compte provisionné avec le rôle `admin`, puis stocke son JWT dans `adminToken`.
   5. Les identifiants `domaineId`, `objectifId`, `tacheId` et `sessionId` peuvent être remplis automatiquement ou modifiés dans l'environnement.
 
   L'IA intervient uniquement sur `/ai/objectifs/intake`. La génération du plan est déterministe.

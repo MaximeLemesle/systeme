@@ -93,7 +93,7 @@ start_background() {
   fi
 }
 
-echo "Démarrage du Coach Course à Pied…"
+echo "Démarrage de Running Club…"
 echo
 
 # --- Dépendances & base (premier lancement uniquement) ---
@@ -112,7 +112,8 @@ fi
 
 [ -f server/.env ] || { echo "  → Création de server/.env"; cp server/.env.example server/.env; }
 [ -f client/.env ] || { echo "  → Création de client/.env"; cp client/.env.example client/.env; }
-[ -f server/prisma/dev.db ] || { echo "  → Création de la base de données…"; ( cd server && npx prisma migrate deploy ); }
+echo "  → Mise à jour de la base et des comptes de démonstration…"
+( cd server && npx prisma migrate deploy && npm run db:seed )
 
 # --- 1) Ollama ---
 if is_up "$OLLAMA_TAGS"; then
@@ -190,6 +191,6 @@ if [ "$ollama_ok" -ne 1 ]; then
   echo "IA locale indisponible : l'app démarre, mais les fonctions IA échoueront tant qu'Ollama ne tourne pas."
 fi
 
-echo "👉 Ouvre http://127.0.0.1:5173"
+echo "👉 Running Club est disponible sur http://127.0.0.1:5173"
 echo "   Si ton navigateur préfère localhost, http://localhost:5173 doit aussi fonctionner."
 echo "   Logs : tail -f logs/*.log     Arrêt : ./stop.sh"

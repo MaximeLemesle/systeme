@@ -9,7 +9,6 @@ const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
 
-// Le rôle voyage dans le JWT : pas de requête DB dans le middleware d'autorisation.
 function signToken(user) {
   return jwt.sign({ userId: user.id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
 }
@@ -41,7 +40,13 @@ router.post("/register", asyncHandler(async (req, res) => {
       username,
       email,
       passwordHash,
-      domaines: { create: { name: "Course à pied" } },
+      role: "user",
+      domaines: {
+        create: {
+          name: "Course à pied",
+          description: "Parcours d'entraînement Running Club",
+        },
+      },
     },
   });
 

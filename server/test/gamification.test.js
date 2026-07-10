@@ -25,11 +25,9 @@ test("applyXpToDomaine gère les montées de niveau multiples", () => {
   assert.equal(result.xpToNextLevel, gamification.xpToNextLevel(result.level));
 });
 
-test("taskDifficulty dérive du template de séance (catalogue mono-course)", () => {
-  assert.equal(gamification.taskDifficulty("vo2_court"), "difficile");
-  assert.equal(gamification.taskDifficulty("seuil"), "difficile");
-  assert.equal(gamification.taskDifficulty("ef"), "facile");
-  assert.equal(gamification.taskDifficulty("marche_course"), "facile");
-  assert.equal(gamification.taskDifficulty("sortie_longue"), "moyen");
+test("taskDifficulty reste calculée côté serveur", () => {
+  assert.equal(gamification.taskDifficulty("fractionne_court"), "difficile");
+  assert.equal(gamification.taskDifficulty("tempo"), "moyen");
+  assert.equal(gamification.taskDifficulty("recuperation"), "facile");
   assert.equal(gamification.taskDifficulty("inconnue"), "moyen");
 });

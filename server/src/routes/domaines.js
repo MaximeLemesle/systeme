@@ -1,5 +1,4 @@
-// Routes /domaines : mono-domaine (course à pied, auto-créé à l'inscription).
-// Plus de CRUD de domaine exposé — seule la progression et la création d'objectif restent.
+// Routes /domaines : consultation du domaine running et création d'objectif.
 const express = require("express");
 const prisma = require("../prisma");
 const auth = require("../middleware/auth");
@@ -8,7 +7,7 @@ const { ObjectifIn } = require("../validation/schemas");
 const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
-router.use(auth);
+router.use(auth); // toutes les routes domaines exigent un token
 
 // GET /domaines — le domaine unique du user (avec ses derniers objectifs)
 router.get("/", asyncHandler(async (req, res) => {
@@ -49,7 +48,18 @@ router.get("/:id/progression", asyncHandler(async (req, res) => {
   res.json({ domaine, objectifs, objectifActif });
 }));
 
-// POST /domaines/:id/objectifs — créer un objectif de course
+// GET /domaines/:id — détail + objectifs
+router.get("/:id", asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  const domaine = await prisma.domaine.findFirst({
+    where: { id, userId: req.userId },
+    include: { objectifs: { orderBy: { createdAt: "desc" } } },
+  });
+  if (!domaine) return res.status(404).json({ error: "Domaine introuvable" });
+  res.json(domaine);
+}));
+
+// POST /domaines/:id/objectifs — créer un objectif
 router.post("/:id/objectifs", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = ObjectifIn.safeParse(req.body);
@@ -60,12 +70,22 @@ router.post("/:id/objectifs", asyncHandler(async (req, res) => {
     return res.status(404).json({ error: "Domaine introuvable" });
   }
   const { deadline, ...rest } = parsed.data;
-  const objectif = await prisma.objectif.create({
-    data: {
-      ...rest,
-      deadline: deadline ? new Date(deadline) : null,
-      domaineId: id,
-    },
+  const objectif = await prisma.$transaction(async (tx) => {
+    const activeCount = await tx.objectif.count({
+      where: { domaineId: id, status: "en_cours" },
+    });
+    if (activeCount > 0) {
+      const error = new Error("Termine ou abandonne l'objectif en cours avant d'en créer un autre");
+      error.status = 409;
+      throw error;
+    }
+    return tx.objectif.create({
+      data: {
+        ...rest,
+        deadline: deadline ? new Date(deadline) : null,
+        domaineId: id,
+      },
+    });
   });
   res.status(201).json(objectif);
 }));

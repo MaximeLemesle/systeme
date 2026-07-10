@@ -7,7 +7,13 @@ import "./index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false, refetchOnWindowFocus: false },
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+      // Fraîcheur de 30 s : évite de relancer immédiatement la même requête
+      // quand l'utilisateur revient sur une page déjà chargée.
+      staleTime: 30_000,
+    },
   },
 });
 

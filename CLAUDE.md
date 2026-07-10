@@ -7,10 +7,8 @@ Application fullstack mono-domaine de coaching running. L'utilisateur définit u
 ## Sources de vérité
 
 1. `README.md` : fonctionnalités, API, installation et limites.
-2. `CONTEXT.md` : vocabulaire et contexte métier.
-3. `docs/adr/` : décisions d'architecture.
-4. `docs/mcd-mld.md` : modèle de données.
-5. `server/prisma/schema.prisma` : schéma exécutable.
+2. `docs/mcd-mld.md` : modèle de données.
+3. `server/prisma/schema.prisma` : schéma exécutable.
 
 En cas de contradiction, le code exécutable et le schéma Prisma priment, puis les ADR les plus récentes.
 
