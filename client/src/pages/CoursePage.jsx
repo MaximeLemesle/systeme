@@ -175,7 +175,7 @@ export default function Dashboard() {
                 <>
                     {/* En-tête domaine */}
                     <Card className="relative overflow-hidden border-[#3d2d18]/15 bg-[#fffaf0]/95">
-                        <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-[#1f6f5f] via-[#3477a8] to-[#d95f45]" />
+                        <div className="absolute inset-x-0 top-0 h-2 bg-linear-to-r from-[#1f6f5f] via-[#3477a8] to-[#d95f45]" />
                         <div className="grid gap-5 pt-2 lg:grid-cols-[1fr_360px]">
                             <div className="space-y-4">
                                 <div>
@@ -226,7 +226,7 @@ export default function Dashboard() {
                     {objectif && (
                         <>
                             <Card className="quest-shine relative space-y-4 overflow-hidden border-[#3d2d18]/15 bg-[#fffaf0]/95">
-                                <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-[#1f6f5f] via-[#3477a8] to-[#d95f45]" />
+                                <div className="absolute inset-x-0 top-0 h-2 bg-linear-to-r from-[#1f6f5f] via-[#3477a8] to-[#d95f45]" />
                                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Badge

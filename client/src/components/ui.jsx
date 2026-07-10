@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 export function Card({ className = "", children, ...props }) {
   return (
     <div
-      className={`game-panel rounded-lg border-2 border-[#3d2d18]/15 bg-[var(--panel)] p-5 backdrop-blur ${className}`}
+      className={`game-panel rounded-lg border-2 border-[#3d2d18]/15 bg-(--panel) p-5 backdrop-blur ${className}`}
       {...props}
     >
       {children}
