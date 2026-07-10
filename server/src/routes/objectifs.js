@@ -4,8 +4,9 @@ const prisma = require("../prisma");
 const auth = require("../middleware/auth");
 const { findObjectif } = require("../access");
 const { ObjectifUpdateIn, SessionIn } = require("../validation/schemas");
-const ai = require("../services/ai");
+const planGenerator = require("../services/planGenerator");
 const gam = require("../services/gamification");
+const prediction = require("../services/prediction");
 const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
@@ -99,7 +100,7 @@ router.patch("/:id/validate", asyncHandler(async (req, res) => {
   });
 }));
 
-// POST /objectifs/:id/taches/generate — IA : génère + persiste le plan de tâches
+// POST /objectifs/:id/taches/generate — génère + persiste le plan de séances (déterministe, zéro LLM)
 router.post("/:id/taches/generate", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const objectif = await findObjectif(req.userId, id);
@@ -116,33 +117,19 @@ router.post("/:id/taches/generate", asyncHandler(async (req, res) => {
     return res.json({ taches: existing, reused: true });
   }
 
-  const domaine = await prisma.domaine.findUnique({ where: { id: objectif.domaineId } });
-
-  let seances;
-  try {
-    seances = await ai.generateTasks({
-      domaine,
-      objectif: {
-        title: objectif.title,
-        metric_label: objectif.metricLabel,
-        target_value: Number(objectif.targetValue),
-        difficulty: objectif.difficulty,
-        objective_type: objectif.objectiveType,
-      },
-      niveau: objectif.niveau || "débutant",
-    });
-  } catch (e) {
-    return res.status(502).json({ error: `IA indisponible: ${e.message}` });
-  }
+  const seances = planGenerator.generatePlan(objectif);
 
   await prisma.tache.createMany({
     data: seances.map((s) => ({
       title: s.title,
       description: s.description || null,
-      orderIndex: s.order_index,
-      estDurationMin: s.est_duration_min ?? null,
-      category: s.category || null,
-      isAiGenerated: true,
+      orderIndex: s.orderIndex,
+      weekIndex: s.weekIndex,
+      estDurationMin: s.estDurationMin ?? null,
+      templateKey: s.templateKey,
+      spec: s.spec,
+      targetLabel: s.targetLabel ?? null,
+      isAiGenerated: false,
       objectifId: id,
     })),
   });
@@ -180,7 +167,7 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Impossible de logger une session sur un objectif terminé" });
   }
 
-  const { durationMinutes, difficulty, selfRating, focusPoint, tacheId } = parsed.data;
+  const { durationMinutes, difficulty, selfRating, focusPoint, tacheId, perfDistanceKm, perfDurationSec } = parsed.data;
 
   // Transaction interactive : lecture + calcul + écritures atomiques (pas d'XP perdue en concurrence).
   const result = await prisma.$transaction(async (tx) => {
@@ -192,8 +179,8 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
       throw err;
     }
 
-    // Anti-triche : si la session est liée à une tâche, la difficulté vient de la
-    // catégorie de la tâche (comme /taches/:id/complete), pas du client.
+    // Anti-triche : si la session est liée à une tâche, la difficulté vient du
+    // template de la tâche (comme /taches/:id/complete), pas du client.
     let effectiveDifficulty = difficulty;
     if (tacheId) {
       const tache = await tx.tache.findFirst({
@@ -204,7 +191,7 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
         err.status = 400;
         throw err;
       }
-      effectiveDifficulty = gam.taskDifficulty(tache.category);
+      effectiveDifficulty = gam.taskDifficulty(tache.templateKey);
     }
 
     // Le serveur calcule l'XP — le client n'envoie JAMAIS de montant d'XP.
@@ -226,6 +213,8 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
         tacheId: tacheId ?? null,
         xpEarned,
         objectifId: id,
+        perfDistanceKm: perfDistanceKm ?? null,
+        perfDurationSec: perfDurationSec ?? null,
       },
     });
     const updatedDomaine = await tx.domaine.update({
@@ -238,7 +227,37 @@ router.post("/:id/sessions", asyncHandler(async (req, res) => {
       },
     });
 
-    return { session, xpEarned, leveledUp: next.leveledUp, newLevels: next.newLevels, domaine: updatedDomaine };
+    // Prédiction : si une perf réelle est fournie, recalcul déterministe de l'estimation courante,
+    // puis recalibrage silencieux des allures des séances restantes (a_faire) sur cette nouvelle estimation.
+    let updatedObjectif = null;
+    const est = prediction.updateEstimate(objectif, {
+      distanceKm: perfDistanceKm,
+      durationSec: perfDurationSec,
+    });
+    if (est) {
+      updatedObjectif = await tx.objectif.update({
+        where: { id },
+        data: { currentValue: est.currentValue, estimateUpdatedAt: new Date() },
+      });
+
+      const remaining = await tx.tache.findMany({ where: { objectifId: id, status: "a_faire" } });
+      const updates = planGenerator.recalibrate(updatedObjectif, remaining);
+      for (const u of updates) {
+        await tx.tache.update({
+          where: { id: u.id },
+          data: { spec: u.spec, targetLabel: u.targetLabel, estDurationMin: u.estDurationMin },
+        });
+      }
+    }
+
+    return {
+      session,
+      xpEarned,
+      leveledUp: next.leveledUp,
+      newLevels: next.newLevels,
+      domaine: updatedDomaine,
+      prediction: est ? prediction.predictionPayload(updatedObjectif) : null,
+    };
   });
 
   res.status(201).json(result);

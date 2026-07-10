@@ -1,17 +1,16 @@
-// Routes /domaines : CRUD, progression et création d'objectif.
+// Routes /domaines : mono-domaine (course à pied, auto-créé à l'inscription).
+// Plus de CRUD de domaine exposé — seule la progression et la création d'objectif restent.
 const express = require("express");
 const prisma = require("../prisma");
 const auth = require("../middleware/auth");
 const { findDomaine } = require("../access");
-const { DomaineIn, ObjectifIn, ObjectiveSuggestIn } = require("../validation/schemas");
-const ai = require("../services/ai");
+const { ObjectifIn } = require("../validation/schemas");
 const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
-const MAX_DOMAINES_PER_USER = 3;
-router.use(auth); // toutes les routes domaines exigent un token
+router.use(auth);
 
-// GET /domaines — liste des domaines du user
+// GET /domaines — le domaine unique du user (avec ses derniers objectifs)
 router.get("/", asyncHandler(async (req, res) => {
   const domaines = await prisma.domaine.findMany({
     where: { userId: req.userId },
@@ -25,26 +24,6 @@ router.get("/", asyncHandler(async (req, res) => {
     },
   });
   res.json(domaines);
-}));
-
-// POST /domaines — créer un domaine
-router.post("/", asyncHandler(async (req, res) => {
-  const parsed = DomaineIn.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0].message });
-  }
-  // Comptage + création dans la même transaction : la limite ne peut pas être
-  // contournée par deux requêtes simultanées.
-  const domaine = await prisma.$transaction(async (tx) => {
-    const count = await tx.domaine.count({ where: { userId: req.userId } });
-    if (count >= MAX_DOMAINES_PER_USER) {
-      const err = new Error("Tu peux suivre 3 domaines maximum.");
-      err.status = 400;
-      throw err;
-    }
-    return tx.domaine.create({ data: { ...parsed.data, userId: req.userId } });
-  });
-  res.status(201).json(domaine);
 }));
 
 // GET /domaines/:id/progression — domaine + objectifs + objectif actif détaillé
@@ -81,53 +60,7 @@ router.get("/:id", asyncHandler(async (req, res) => {
   res.json(domaine);
 }));
 
-// PUT /domaines/:id — modifier
-router.put("/:id", asyncHandler(async (req, res) => {
-  const id = Number(req.params.id);
-  const parsed = DomaineIn.partial().safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0].message });
-  }
-  if (!(await findDomaine(req.userId, id))) {
-    return res.status(404).json({ error: "Domaine introuvable" });
-  }
-  const domaine = await prisma.domaine.update({ where: { id }, data: parsed.data });
-  res.json(domaine);
-}));
-
-// DELETE /domaines/:id — supprimer (cascade objectifs/tâches/sessions)
-router.delete("/:id", asyncHandler(async (req, res) => {
-  const id = Number(req.params.id);
-  if (!(await findDomaine(req.userId, id))) {
-    return res.status(404).json({ error: "Domaine introuvable" });
-  }
-  await prisma.domaine.delete({ where: { id } });
-  res.json({ ok: true });
-}));
-
-// POST /domaines/:id/objectifs/suggestions — IA : objectifs SMART proposés pour ce domaine
-router.post("/:id/objectifs/suggestions", asyncHandler(async (req, res) => {
-  const id = Number(req.params.id);
-  const parsed = ObjectiveSuggestIn.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0].message });
-  }
-  const domaine = await findDomaine(req.userId, id);
-  if (!domaine) return res.status(404).json({ error: "Domaine introuvable" });
-
-  try {
-    const objectifs = await ai.suggestObjectives({
-      domaine,
-      niveau: parsed.data.niveau || "débutant",
-      objectiveType: parsed.data.objectiveType || null,
-    });
-    res.json({ objectifs });
-  } catch (e) {
-    res.status(502).json({ error: `IA indisponible: ${e.message}` });
-  }
-}));
-
-// POST /domaines/:id/objectifs — créer un objectif
+// POST /domaines/:id/objectifs — créer un objectif de course
 router.post("/:id/objectifs", asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const parsed = ObjectifIn.safeParse(req.body);

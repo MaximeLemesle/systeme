@@ -1,64 +1,70 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { SuggestionsOut, RefineOut, TasksOut } = require("../src/validation/schemas");
+const { ObjectifIn, IntakeOut, SessionIn } = require("../src/validation/schemas");
 
-test("SuggestionsOut accepte les nombres renvoyés sous forme de chaînes par le LLM", () => {
-  const parsed = SuggestionsOut.parse({
-    objectifs: [
-      {
-        title: "Publier une app simple",
-        metric_label: "app",
-        unit: null,
-        target_value: "1",
-        difficulty: "moyen",
-        deadline_suggeree: "2026-07-30",
-      },
-      {
-        title: "Créer un prototype",
-        metric_label: "prototype",
-        unit: null,
-        target_value: 1,
-        difficulty: "facile",
-        deadline_suggeree: "2026-07-15",
-      },
-      {
-        title: "Livrer une version test",
-        metric_label: "version",
-        unit: null,
-        target_value: 1,
-        difficulty: "difficile",
-        deadline_suggeree: "2026-08-15",
-      },
-    ],
-  });
+test("ObjectifIn exige une distance de référence (mono-course)", () => {
+  assert.throws(() =>
+    ObjectifIn.parse({
+      title: "Courir 5 km sans pause",
+      metricLabel: "distance",
+      targetValue: 5,
+    })
+  );
 
-  assert.equal(parsed.objectifs[0].target_value, 1);
-});
-
-test("RefineOut valide un objectif SMART minimal", () => {
-  const parsed = RefineOut.parse({
+  const parsed = ObjectifIn.parse({
     title: "Courir 5 km sans pause",
-    metric_label: "distance",
-    unit: "km",
-    start_value: null,
-    target_value: "5",
-    difficulty: "moyen",
-    deadline: "2026-08-01",
-    faisabilite: "Objectif réaliste avec une progression régulière.",
+    metricLabel: "distance",
+    targetValue: 5,
+    targetDistanceKm: 5,
   });
-
-  assert.equal(parsed.target_value, 5);
+  assert.equal(parsed.archetype, "completion"); // défaut
+  assert.equal(parsed.frequency, 3); // défaut
 });
 
-test("TasksOut force une catégorie générique si le LLM sort une catégorie inconnue", () => {
-  const parsed = TasksOut.parse({
-    taches: [
-      { order_index: 1, title: "Étape 1", description: "", category: "foo", est_duration_min: "30" },
-      { order_index: 2, title: "Étape 2", description: "", category: "general", est_duration_min: 30 },
-      { order_index: 3, title: "Étape 3", description: "", est_duration_min: null },
-    ],
+test("ObjectifIn accepte l'archétype chrono explicite", () => {
+  const parsed = ObjectifIn.parse({
+    title: "Descendre sous les 24 min au 5 km",
+    metricLabel: "temps",
+    targetValue: 1440,
+    targetDistanceKm: 5,
+    archetype: "chrono",
+    frequency: 4,
   });
+  assert.equal(parsed.archetype, "chrono");
+  assert.equal(parsed.frequency, 4);
+});
 
-  assert.equal(parsed.taches[0].category, "general");
-  assert.equal(parsed.taches[0].est_duration_min, 30);
+test("IntakeOut : sortie finale requiert un objectif complet, coercition des nombres du LLM", () => {
+  const parsed = IntakeOut.parse({
+    done: true,
+    assistant: "C'est parti !",
+    objectif: {
+      title: "Courir mon premier 10 km",
+      metric_label: "distance",
+      unit: "km",
+      start_value: null,
+      target_value: "10", // le LLM renvoie parfois une chaîne
+      target_distance_km: "10",
+      difficulty: "moyen",
+      deadline: "2026-09-01",
+      archetype: "completion",
+      frequency: "3",
+      faisabilite: "Réaliste avec un plan progressif.",
+    },
+  });
+  assert.equal(parsed.objectif.target_value, 10);
+  assert.equal(parsed.objectif.frequency, 3);
+
+  assert.throws(() => IntakeOut.parse({ done: true, assistant: "..." }));
+});
+
+test("SessionIn : perf distance + temps optionnelles, plus de champ perfValue générique", () => {
+  const parsed = SessionIn.parse({
+    durationMinutes: 40,
+    difficulty: "moyen",
+    perfDistanceKm: 5,
+    perfDurationSec: 1500,
+  });
+  assert.equal(parsed.perfDistanceKm, 5);
+  assert.equal("perfValue" in parsed, false);
 });

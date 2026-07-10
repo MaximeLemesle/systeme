@@ -34,8 +34,14 @@ router.post("/register", asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+  // Mono-domaine : chaque user a un unique domaine "Course à pied", créé avec le compte.
   const user = await prisma.user.create({
-    data: { username, email, passwordHash },
+    data: {
+      username,
+      email,
+      passwordHash,
+      domaines: { create: { name: "Course à pied" } },
+    },
   });
 
   return res.status(201).json({ user: publicUser(user), token: signToken(user.id) });

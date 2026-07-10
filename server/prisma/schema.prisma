@@ -36,46 +36,52 @@ model Domaine {
 }
 
 model Objectif {
-  id           Int       @id @default(autoincrement()) @map("id_objectif")
-  title        String
-  description  String?
-  rawInput     String?   @map("raw_input") // objectif brut saisi par l'utilisateur
-  metricLabel  String    @map("metric_label")
-  unit         String?
-  startValue   Decimal?  @map("start_value")
-  targetValue  Decimal   @map("target_value")
-  currentValue Decimal?  @map("current_value")
-  difficulty   String    @default("moyen") // facile | moyen | difficile
-  niveau       String?   // débutant | intermédiaire | avancé (niveau du coureur)
-  objectiveType String?  @map("objective_type") // endurance | chrono | distance | regularite
-  deadline     DateTime?
-  status       String    @default("en_cours") // en_cours | valide | abandonne
-  xpReward     Int       @default(1000) @map("xp_reward")
-  aiRefined    Boolean   @default(false) @map("ai_refined")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  validatedAt  DateTime? @map("validated_at")
-  domaineId    Int       @map("domaine_id")
-  domaine      Domaine   @relation(fields: [domaineId], references: [id], onDelete: Cascade)
-  taches       Tache[]
-  sessions     Session[]
+  id                Int       @id @default(autoincrement()) @map("id_objectif")
+  title             String
+  description       String?
+  rawInput          String?   @map("raw_input") // objectif brut saisi par l'utilisateur
+  metricLabel       String    @map("metric_label")
+  unit              String?
+  startValue        Decimal?  @map("start_value")
+  targetValue       Decimal   @map("target_value")
+  currentValue      Decimal?  @map("current_value")
+  difficulty        String    @default("moyen") // facile | moyen | difficile
+  niveau            String? // débutant | intermédiaire | avancé (niveau du coureur)
+  archetype         String    @default("completion") // chrono (temps cible sur distance) | completion (couvrir une distance)
+  frequency         Int       @default(3) // séances par semaine (2..5), choisi à l'intake
+  targetDistanceKm  Float?    @map("target_distance_km") // distance de référence de l'objectif (km)
+  estimateUpdatedAt DateTime? @map("estimate_updated_at") // dernière MAJ de currentValue via une perf loggée
+  deadline          DateTime?
+  status            String    @default("en_cours") // en_cours | valide | abandonne
+  xpReward          Int       @default(1000) @map("xp_reward")
+  aiRefined         Boolean   @default(false) @map("ai_refined")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  validatedAt       DateTime? @map("validated_at")
+  domaineId         Int       @map("domaine_id")
+  domaine           Domaine   @relation(fields: [domaineId], references: [id], onDelete: Cascade)
+  taches            Tache[]
+  sessions          Session[]
 
   @@map("objectif")
 }
 
 model Tache {
-  id             Int       @id @default(autoincrement()) @map("id_tache")
-  title          String
-  description    String?
-  orderIndex     Int       @default(0) @map("order_index")
-  estDurationMin Int?      @map("est_duration_min")
-  category       String?   // footing | fractionne | sortie_longue | recuperation | objectif
-  status         String    @default("a_faire") // a_faire | en_cours | fait
-  isAiGenerated  Boolean   @default(true) @map("is_ai_generated")
-  completedAt    DateTime? @map("completed_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  objectifId     Int       @map("objectif_id")
-  objectif       Objectif  @relation(fields: [objectifId], references: [id], onDelete: Cascade)
-  sessions       Session[]
+  id                Int       @id @default(autoincrement()) @map("id_tache")
+  title             String
+  description       String?
+  orderIndex        Int       @default(0) @map("order_index")
+  weekIndex         Int       @default(1) @map("week_index") // semaine du plan (groupement d'affichage)
+  estDurationMin    Int?      @map("est_duration_min")
+  templateKey       String?   @map("template_key") // clé du template de séance (voir services/templates.js) ; null = tâche manuelle
+  spec              String? // JSON structuré de la séance (source de vérité du recalibrage)
+  targetLabel       String?   @map("target_label") // cible lisible rendue depuis le spec (ex : "5 km à 5:00/km")
+  status            String    @default("a_faire") // a_faire | en_cours | fait
+  isAiGenerated     Boolean   @default(true) @map("is_ai_generated")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  objectifId        Int       @map("objectif_id")
+  objectif          Objectif  @relation(fields: [objectifId], references: [id], onDelete: Cascade)
+  sessions          Session[]
 
   @@map("tache")
 }
@@ -86,6 +92,8 @@ model Session {
   durationMinutes Int       @map("duration_minutes")
   difficulty      String    @default("moyen") // facile | moyen | difficile
   selfRating      Int?      @map("self_rating") // 1..5 (auto-évaluation)
+  perfDistanceKm  Float?    @map("perf_distance_km") // perf réelle : distance (km)
+  perfDurationSec Int?      @map("perf_duration_sec") // perf réelle : temps (s)
   xpEarned        Int       @default(0) @map("xp_earned")
   createdAt       DateTime  @default(now()) @map("created_at")
   objectifId      Int       @map("objectif_id")

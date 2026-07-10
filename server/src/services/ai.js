@@ -1,15 +1,17 @@
 // Service IA — appelé UNIQUEMENT côté backend.
-// Trois usages : proposer des objectifs, raffiner un objectif libre, générer un plan d'action.
-// Toujours sortie JSON validée avec Zod ; 1 retry si invalide, sinon erreur propagée (502 côté route).
-const { SuggestionsOut, RefineOut, TasksOut } = require("../validation/schemas");
+// Seul usage : l'intake conversationnel qui recueille les paramètres de l'objectif
+// de course à pied. Le plan lui-même est calculé de façon déterministe par
+// services/planGenerator.js (voir docs/adr/0001) — jamais par le LLM.
+const { IntakeOut } = require("../validation/schemas");
 const { env } = require("../config/env");
 
 const PROVIDER = env.AI_PROVIDER;
 // Un LLM local peut être lent, mais au-delà on abandonne pour ne pas laisser la requête pendue.
 const LLM_TIMEOUT_MS = 150_000;
 
-// Appel LLM générique renvoyant un objet JSON parsé.
-async function callLlmJson(system, user) {
+// Appel LLM générique multi-messages renvoyant un objet JSON parsé.
+// `messages` inclut déjà le rôle "system" et tout le transcript.
+async function chatJson(messages) {
   if (PROVIDER === "ollama") {
     const res = await fetch(`${env.OLLAMA_URL}/api/chat`, {
       method: "POST",
@@ -24,10 +26,7 @@ async function callLlmJson(system, user) {
           temperature: 0.2, // sorties plus déterministes = JSON plus fiable & moins bavard
           num_predict: 1100, // borne la génération (anti-emballement)
         },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
+        messages,
       }),
     });
     if (!res.ok) throw new Error(`Ollama ${res.status}`);
@@ -46,10 +45,7 @@ async function callLlmJson(system, user) {
     body: JSON.stringify({
       model: "mistral-small-latest",
       response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
+      messages,
     }),
   });
   if (!res.ok) throw new Error(`Mistral ${res.status}`);
@@ -57,12 +53,12 @@ async function callLlmJson(system, user) {
   return JSON.parse(data.choices[0].message.content);
 }
 
-// Valide la sortie ; 1 retry si le JSON ne respecte pas le schéma.
-async function generateValidated(system, user, schema) {
+// Valide la sortie d'un transcript complet ; 1 retry si le JSON ne respecte pas le schéma.
+async function generateValidatedChat(messages, schema) {
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const raw = await callLlmJson(system, user);
+      const raw = await chatJson(messages);
       return schema.parse(raw);
     } catch (e) {
       lastErr = e;
@@ -77,62 +73,90 @@ const FR_RULE =
   "IMPORTANT : rédige absolument TOUT le texte (titres, descriptions, labels, conseils) en FRANÇAIS correct et naturel. Aucun mot en anglais.";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-// Descriptions lisibles des types d'objectif de course (pour guider le LLM si besoin).
-const TYPE_LABELS = {
-  endurance: "Endurance : courir plus longtemps sans s'arrêter (durée ou distance continue)",
-  chrono: "Chrono : atteindre un temps cible sur une distance (ex : 5 km en 30 min)",
-  distance: "Distance : augmenter la distance parcourue (ex : réussir son premier 10 km)",
-  regularite: "Régularité : courir régulièrement (ex : 3 sorties par semaine pendant 1 mois)",
-};
-
-function domaineLabel(domaine) {
-  if (!domaine) return "Progression personnelle";
-  if (typeof domaine === "string") return domaine;
-  return [domaine.name, domaine.description].filter(Boolean).join(" — ");
+// Nombre de jours minimum réaliste avant l'échéance, selon l'ampleur du changement visé
+// (règle de progression progressive : plus l'écart start→target est grand, plus il faut de temps).
+// Sans valeurs numériques exploitables, on retombe sur un minimum raisonnable de 3 semaines.
+function minRealisticDays(startValue, targetValue) {
+  const s = Number(startValue);
+  const t = Number(targetValue);
+  if (!Number.isFinite(s) || !Number.isFinite(t) || s === 0) return 21;
+  const pctChange = Math.abs((t - s) / s) * 100;
+  const weeks = Math.min(52, Math.max(3, Math.ceil(pctChange * 1.5) + 2));
+  return weeks * 7;
 }
 
-function extraContext(objectiveType) {
-  return objectiveType && TYPE_LABELS[objectiveType] ? ` Type visé : ${TYPE_LABELS[objectiveType]}.` : "";
+// Garantit une échéance dans le FUTUR et réaliste par rapport à l'ampleur du changement demandé.
+// Les petits modèles locaux ignorent parfois la consigne de date (ex : renvoient la date du jour) —
+// on ne peut pas compter sur le LLM pour ça, donc on la recalcule nous-mêmes si besoin (déterministe).
+function ensureRealisticDeadline(deadline, startValue, targetValue) {
+  const minDays = minRealisticDays(startValue, targetValue);
+  const floor = new Date(Date.now() + minDays * ONE_DAY_MS);
+  const proposed = deadline ? new Date(deadline) : null;
+  const isValid = proposed && !Number.isNaN(proposed.getTime());
+  if (isValid && proposed.getTime() >= floor.getTime()) return deadline;
+  return floor.toISOString().slice(0, 10);
 }
 
-// Propose 3 objectifs SMART adaptés au domaine et au niveau.
-async function suggestObjectives({ domaine, niveau = "débutant", objectiveType = null }) {
-  const system = `Tu es un coach expert en pratique délibérée. ${FR_RULE} ${JSON_RULE}`;
-  const user = `Date du jour : ${today()}.
-Domaine : ${domaineLabel(domaine)}.
-Niveau de l'utilisateur : ${niveau}.${extraContext(objectiveType)}
-Propose EXACTEMENT 3 objectifs SMART progressifs (du plus accessible au plus ambitieux), réalistes, mesurables et adaptés à ce domaine.
-Sois CONCIS : "title" max 12 mots, "metric_label" 1 à 3 mots (ex : "distance", "temps", "projet", "morceau").
-Format STRICT : {"objectifs":[{"title","metric_label","unit","target_value","difficulty","deadline_suggeree"}]}.
-"difficulty" ∈ facile|moyen|difficile. "deadline_suggeree" au format YYYY-MM-DD (échéance réaliste à partir d'aujourd'hui).`;
-  return (await generateValidated(system, user, SuggestionsOut)).objectifs;
+// Répare/normalise la proposition d'objectif d'un petit modèle local (peu fiable sur les consignes fines).
+// Pour l'archétype "chrono" : déduit la distance de référence si absente, et met les temps en SECONDES.
+function normalizeIntakeObjectif(obj) {
+  if (!obj) return obj;
+  const o = { ...obj };
+  if (o.archetype === "chrono") {
+    if (o.target_distance_km == null) {
+      const m = `${o.title || ""} ${o.metric_label || ""}`.match(/(\d+(?:[.,]\d+)?)\s*km/i);
+      if (m) o.target_distance_km = Number(m[1].replace(",", "."));
+    }
+    // Un temps de 5 km ne peut pas être < 300 s : une valeur si petite est en minutes → on convertit.
+    const toSec = (v) => (v != null && v > 0 && v < 300 ? Math.round(v * 60) : v);
+    o.target_value = toSec(o.target_value);
+    if (o.start_value != null) o.start_value = toSec(o.start_value);
+    o.unit = "s";
+  } else {
+    o.unit = "km";
+  }
+  o.deadline = ensureRealisticDeadline(o.deadline, o.start_value, o.target_value);
+  return o;
 }
 
-// Transforme un objectif libre en objectif SMART.
-async function refineObjective({ domaine, objectifBrut, niveau = "débutant", objectiveType = null }) {
-  const system = `Tu es un coach qui transforme un objectif vague en objectif SMART réaliste. ${FR_RULE} ${JSON_RULE}`;
-  const user = `Date du jour : ${today()}.
-Domaine : ${domaineLabel(domaine)}.
-Niveau de l'utilisateur : ${niveau}.${extraContext(objectiveType)}
-Objectif brut de l'utilisateur : "${objectifBrut}".
-Reformule-le en objectif SMART cohérent et atteignable pour ce domaine. Sois CONCIS (titre max 14 mots).
-Format STRICT : {"title","metric_label","unit","start_value","target_value","difficulty","deadline","faisabilite"}.
-"difficulty" ∈ facile|moyen|difficile. "deadline" au format YYYY-MM-DD. "faisabilite" : 1 phrase courte et honnête.`;
-  return await generateValidated(system, user, RefineOut);
-}
-
-// Génère un plan de tâches ordonnées jusqu'à l'objectif.
-async function generateTasks({ domaine, objectif, niveau = "débutant" }) {
-  const system = `Tu es un coach expert en pratique délibérée qui construit des plans progressifs, concrets et sûrs. ${FR_RULE} ${JSON_RULE}`;
-  const user = `Domaine : ${domaineLabel(domaine)}.
-Niveau de l'utilisateur : ${niveau}. Objectif : ${JSON.stringify(objectif)}.
-Construis un plan SIMPLE de 5 à 10 tâches ORDONNÉES, progressives, qui mènent à l'objectif. La dernière tâche doit représenter l'objectif final ou une validation concrète.
-Pour chaque tâche, donne un titre court et une description avec un peu de détail (durée, intensité ou livrable, et 1 conseil concret).
-"category" vaut "general" par défaut. Si le domaine est la course à pied, tu peux utiliser : footing | fractionne | sortie_longue | recuperation | objectif.
-Format STRICT : {"taches":[{"order_index","title","description","category","est_duration_min"}]}.
-"order_index" commence à 1. "est_duration_min" = durée estimée en minutes.`;
-  return (await generateValidated(system, user, TasksOut)).taches;
+// Recueil conversationnel (multi-tours) des infos SMART avant de créer l'objectif de course.
+// Le LLM pose au plus 4 questions puis propose un objectif SMART complet.
+// `messages` = transcript [{role:"user"|"assistant", content}]. Sortie JSON validée par IntakeOut.
+async function intakeConversation({ niveau = "débutant", messages }) {
+  const system = `Tu es un coach de course à pied qui recueille, EN CONVERSATION, les informations nécessaires pour bâtir un objectif SMART et un plan d'entraînement. ${FR_RULE} ${JSON_RULE}
+Date du jour : ${today()}. Domaine : course à pied. Niveau de l'utilisateur : ${niveau}.
+Règles de conduite :
+- Pose AU PLUS 4 questions, UNE seule à la fois, pour clarifier : (1) l'ARCHÉTYPE — un temps cible sur une distance ("aller plus vite sur 5 km") ou juste réussir à couvrir une distance jamais faite ("finir un marathon", "mon premier 2 km") ; (2) la distance de référence (km) ; (3) si archétype temps cible : le temps visé, et le temps actuel sur cette distance (ou "jamais chronométré") ; (4) l'échéance et la fréquence hebdomadaire souhaitée (2 à 5 séances/semaine).
+- Dès que tu as assez d'infos, propose directement l'objectif SMART final (ne pose pas de question superflue).
+Réponds TOUJOURS avec un objet JSON de forme EXACTE :
+{"done": <true|false>, "assistant": "<ton message en français>", "objectif": <null ou objet>}
+- Tant que tu poses une question : "done"=false, "objectif"=null, "assistant"=ta question.
+- Quand tu proposes l'objectif : "done"=true, "assistant"=court récapitulatif, "objectif"={"title","metric_label","unit","start_value","target_value","target_distance_km","difficulty","deadline","archetype","frequency","faisabilite"}.
+- "archetype" ∈ chrono|completion. "chrono" = temps cible sur une distance ; "completion" = couvrir une distance jamais faite (pas de temps cible).
+- "target_distance_km" = distance de référence en km (nombre), TOUJOURS requise.
+- Si "chrono" : "target_value" = temps CIBLE en SECONDES, "start_value" = temps ACTUEL en secondes (ou null si jamais chronométré), "unit" = "s".
+- Si "completion" : "target_value" = "target_distance_km" (même valeur, en km), "start_value" = plus longue distance déjà courue en continu (ou null si jamais essayé), "unit" = "km".
+- "frequency" = nombre entier de séances par semaine (2 à 5).
+- "difficulty" ∈ facile|moyen|difficile. "deadline" au format YYYY-MM-DD : une date FUTURE (JAMAIS la date du jour ni une date passée), laissant assez de temps pour progresser réellement.`;
+  // Garde-fou anti-boucle : après 3 réponses de l'utilisateur, on force la proposition finale
+  // (les petits modèles locaux ont tendance à reposer des questions à l'infini).
+  const userTurns = messages.filter((m) => m.role === "user").length;
+  const full = [
+    { role: "system", content: system },
+    ...messages.map((m) => ({ role: m.role, content: m.content })),
+  ];
+  if (userTurns >= 3) {
+    full.push({
+      role: "system",
+      content:
+        "Tu as maintenant assez d'informations. Tu DOIS répondre avec \"done\": true et un \"objectif\" complet. Ne pose plus AUCUNE question. Si une info manque, choisis une valeur raisonnable par défaut.",
+    });
+  }
+  const out = await generateValidatedChat(full, IntakeOut);
+  if (out.done && out.objectif) out.objectif = normalizeIntakeObjectif(out.objectif);
+  return out;
 }
 
 // Précharge le modèle en mémoire (appelé au boot) : le premier appel IA d'un
@@ -158,4 +182,4 @@ async function warmupLlm() {
   }
 }
 
-module.exports = { suggestObjectives, refineObjective, generateTasks, warmupLlm };
+module.exports = { intakeConversation, warmupLlm };

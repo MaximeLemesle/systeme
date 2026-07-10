@@ -5,6 +5,8 @@ const auth = require("../middleware/auth");
 const { findTache } = require("../access");
 const { TacheUpdateIn, CompleteTacheIn } = require("../validation/schemas");
 const gam = require("../services/gamification");
+const prediction = require("../services/prediction");
+const planGenerator = require("../services/planGenerator");
 const asyncHandler = require("../middleware/asyncHandler");
 
 const router = express.Router();
@@ -45,9 +47,9 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
       throw err;
     }
 
-    const { durationMinutes, selfRating, focusPoint } = parsed.data;
+    const { durationMinutes, selfRating, focusPoint, perfDistanceKm, perfDurationSec } = parsed.data;
     const effectiveDuration = durationMinutes ?? tache.estDurationMin ?? 30;
-    const effectiveDifficulty = gam.taskDifficulty(tache.category);
+    const effectiveDifficulty = gam.taskDifficulty(tache.templateKey);
     const xpEarned = gam.sessionXp({
       durationMinutes: effectiveDuration,
       difficulty: effectiveDifficulty,
@@ -64,6 +66,8 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
         tacheId: id,
         xpEarned,
         objectifId: tache.objectifId,
+        perfDistanceKm: perfDistanceKm ?? null,
+        perfDurationSec: perfDurationSec ?? null,
       },
     });
 
@@ -77,6 +81,31 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
       },
     });
 
+    // Prédiction : si une perf réelle est fournie, on recalcule l'estimation courante (serveur,
+    // déterministe), puis on recalibre silencieusement les allures des séances restantes.
+    let objectif = tache.objectif;
+    const est = prediction.updateEstimate(objectif, {
+      distanceKm: perfDistanceKm,
+      durationSec: perfDurationSec,
+    });
+    if (est) {
+      objectif = await tx.objectif.update({
+        where: { id: tache.objectifId },
+        data: { currentValue: est.currentValue, estimateUpdatedAt: new Date() },
+      });
+
+      const remaining = await tx.tache.findMany({
+        where: { objectifId: tache.objectifId, status: "a_faire" },
+      });
+      const updates = planGenerator.recalibrate(objectif, remaining);
+      for (const u of updates) {
+        await tx.tache.update({
+          where: { id: u.id },
+          data: { spec: u.spec, targetLabel: u.targetLabel, estDurationMin: u.estDurationMin },
+        });
+      }
+    }
+
     const completedTache = await tx.tache.findUnique({ where: { id } });
 
     return {
@@ -86,6 +115,7 @@ router.post("/:id/complete", asyncHandler(async (req, res) => {
       leveledUp: next.leveledUp,
       newLevels: next.newLevels,
       domaine,
+      prediction: est ? prediction.predictionPayload(objectif) : null,
     };
   });
 

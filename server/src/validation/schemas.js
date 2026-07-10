@@ -1,6 +1,7 @@
 const { z } = require("zod");
 
 const Difficulty = z.enum(["facile", "moyen", "difficile"]);
+const Archetype = z.enum(["chrono", "completion"]);
 const RequiredString = (field) =>
   z.string({
     required_error: `${field} est requis`,
@@ -12,57 +13,18 @@ const RequiredNumber = (field) =>
     invalid_type_error: `${field} doit être un nombre`,
   });
 
-// ---------- Schémas de sortie IA (sorties LLM en mode JSON) ----------
-
-// NB : on utilise z.coerce.number() car les LLM renvoient parfois les nombres
-// sous forme de chaînes ("1" au lieu de 1) — la coercition évite un retry inutile.
-const SuggestionsOut = z.object({
-  objectifs: z
-    .array(
-      z.object({
-        title: z.string().min(3),
-        metric_label: z.string(),
-        unit: z.string().nullable().optional(),
-        target_value: z.coerce.number(),
-        difficulty: Difficulty,
-        deadline_suggeree: z.string(), // ISO "YYYY-MM-DD"
-      })
-    )
-    .min(3)
-    .max(6),
-});
-
-const RefineOut = z.object({
-  title: z.string().min(3),
-  metric_label: z.string(),
-  unit: z.string().nullable().optional(),
-  start_value: z.coerce.number().nullable().optional(),
-  target_value: z.coerce.number(),
-  difficulty: Difficulty,
-  deadline: z.string(), // ISO
-  faisabilite: z.string(), // courte note réaliste
-});
-
-// Plan d'action : étapes ordonnées avec une catégorie optionnelle.
-// Les catégories running restent supportées pour le domaine "Course à pied".
-const TrainingCategory = z
-  .enum(["general", "footing", "fractionne", "sortie_longue", "recuperation", "objectif"])
-  .catch("general");
-
-const TasksOut = z.object({
-  taches: z
-    .array(
-      z.object({
-        order_index: z.coerce.number().int(),
-        title: z.string().min(2),
-        description: z.string().optional().default(""),
-        category: TrainingCategory.optional().default("general"),
-        est_duration_min: z.coerce.number().int().nullable().optional(),
-      })
-    )
-    .min(3)
-    .max(20),
-});
+// Perf réelle loggée à la fin d'une séance (facultative). Toujours distance + temps
+// (course à pied) — le serveur calcule la prédiction (voir services/prediction.js).
+const PerfFields = {
+  perfDistanceKm: z.number().positive("La distance doit être positive").max(500).optional().nullable(),
+  perfDurationSec: z
+    .number()
+    .int("Le temps doit être un entier de secondes")
+    .positive("Le temps doit être positif")
+    .max(86400)
+    .optional()
+    .nullable(),
+};
 
 // ---------- Schémas d'entrée des endpoints qui écrivent ----------
 
@@ -83,18 +45,6 @@ const LoginIn = z.object({
   password: RequiredString("Le mot de passe").min(1, "Le mot de passe est requis"),
 });
 
-const DomaineIn = z.object({
-  name: RequiredString("Le nom du domaine")
-    .trim()
-    .min(1, "Le nom du domaine est requis")
-    .max(100, "Le nom du domaine ne peut pas dépasser 100 caractères"),
-  description: z
-    .string()
-    .max(1000, "La description ne peut pas dépasser 1000 caractères")
-    .optional()
-    .nullable(),
-});
-
 const ObjectifIn = z.object({
   title: RequiredString("Le titre")
     .trim()
@@ -112,7 +62,11 @@ const ObjectifIn = z.object({
   currentValue: z.number().optional().nullable(),
   difficulty: Difficulty.default("moyen"),
   niveau: z.string().optional().nullable(),
-  objectiveType: z.string().optional().nullable(),
+  // "chrono" (temps cible sur distance) | "completion" (couvrir une distance jamais faite).
+  archetype: Archetype.default("completion"),
+  frequency: z.number().int().min(2).max(5).default(3),
+  // Distance de référence (km), toujours requise (mono-course).
+  targetDistanceKm: RequiredNumber("La distance cible").positive().max(500),
   deadline: z.string().optional().nullable(), // "YYYY-MM-DD"
   aiRefined: z.boolean().optional().default(false),
 });
@@ -160,6 +114,7 @@ const SessionIn = z.object({
     .optional()
     .nullable(),
   tacheId: z.number().int().optional().nullable(),
+  ...PerfFields,
 });
 
 const FeedbackIn = z.object({
@@ -168,18 +123,46 @@ const FeedbackIn = z.object({
   correction: z.string().optional().nullable(),
 });
 
-const RefineIn = z.object({
-  objectifBrut: RequiredString("L'objectif").min(1, "Décris ton objectif avant de le raffiner"),
-  domaineId: z.number().int().optional().nullable(),
-  domaine: z.string().optional().nullable(),
+// Recueil conversationnel (multi-tours) : entrée = transcript, sortie = question OU objectif SMART final.
+const IntakeIn = z.object({
   niveau: z.string().optional().nullable(),
-  objectiveType: z.string().optional().nullable(),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(2000),
+      })
+    )
+    .min(1, "La conversation ne peut pas être vide")
+    .max(20),
 });
 
-const ObjectiveSuggestIn = z.object({
-  niveau: z.string().optional().nullable(),
-  objectiveType: z.string().optional().nullable(),
+// NB : z.coerce.number() car les LLM renvoient parfois les nombres sous forme de
+// chaînes ("1" au lieu de 1) — la coercition évite un retry inutile.
+const IntakeObjectif = z.object({
+  title: z.string().min(3),
+  metric_label: z.string(),
+  unit: z.string().nullable().optional(),
+  start_value: z.coerce.number().nullable().optional(),
+  target_value: z.coerce.number(),
+  target_distance_km: z.coerce.number().positive().max(500),
+  difficulty: Difficulty,
+  deadline: z.string(),
+  archetype: Archetype.catch("completion"),
+  frequency: z.coerce.number().int().min(2).max(5).catch(3),
+  faisabilite: z.string().optional().default(""),
 });
+
+const IntakeOut = z
+  .object({
+    done: z.coerce.boolean(),
+    assistant: z.string().min(1),
+    objectif: IntakeObjectif.nullable().optional(),
+  })
+  .refine((d) => !d.done || d.objectif, {
+    message: "L'objectif final est requis quand done=true",
+    path: ["objectif"],
+  });
 
 const CompleteTacheIn = z.object({
   durationMinutes: z
@@ -201,22 +184,20 @@ const CompleteTacheIn = z.object({
     .max(255, "Le point travaillé ne peut pas dépasser 255 caractères")
     .optional()
     .nullable(),
+  ...PerfFields,
 });
 
 module.exports = {
   Difficulty,
-  SuggestionsOut,
-  RefineOut,
-  TasksOut,
+  Archetype,
   RegisterIn,
   LoginIn,
-  DomaineIn,
   ObjectifIn,
   ObjectifUpdateIn,
   TacheUpdateIn,
   CompleteTacheIn,
   SessionIn,
   FeedbackIn,
-  RefineIn,
-  ObjectiveSuggestIn,
+  IntakeIn,
+  IntakeOut,
 };
