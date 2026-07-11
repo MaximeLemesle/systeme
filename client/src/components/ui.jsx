@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 export function Card({ className = "", children, ...props }) {
   return (
     <div
-      className={`game-panel rounded-lg border-2 border-[#3d2d18]/15 bg-(--panel) p-5 backdrop-blur ${className}`}
+      className={`game-panel rounded-lg border-2 border-[#2b211d]/15 bg-(--panel) p-5 backdrop-blur ${className}`}
       {...props}
     >
       {children}
@@ -15,17 +15,17 @@ export function Card({ className = "", children, ...props }) {
 export function Button({ variant = "primary", className = "", ...props }) {
   const variants = {
     primary:
-      "quest-shine border-b-4 border-[#174d42] bg-[#1f6f5f] text-white shadow-lg shadow-emerald-950/15 hover:bg-[#1a5f52] disabled:border-b-2 disabled:opacity-50 disabled:cursor-not-allowed",
+      "quest-shine border-b-4 border-[#7a2a15] bg-[#c8532f] text-white shadow-lg shadow-black/15 hover:bg-[#a83f22] disabled:border-b-2 disabled:opacity-50 disabled:cursor-not-allowed",
     ghost:
-      "border-2 border-[#3d2d18]/15 bg-[#fff8e8]/85 text-[#46351f] hover:border-[#1f6f5f]/35 hover:bg-white",
+      "border-2 border-[#2b211d]/15 bg-[#faf5ee]/85 text-[#2b211d] hover:border-[#c8532f]/35 hover:bg-white",
     success:
-      "quest-shine border-b-4 border-[#9b6818] bg-[#d89b2b] text-[#2b2114] shadow-lg shadow-amber-900/15 hover:bg-[#c8891f] disabled:border-b-2 disabled:opacity-50",
+      "quest-shine border-b-4 border-[#8a6423] bg-[#d9a441] text-[#2b1c0a] shadow-lg shadow-amber-900/15 hover:bg-[#c39030] disabled:border-b-2 disabled:opacity-50",
     danger:
-      "border-b-4 border-[#873224] bg-[#d95f45] text-white shadow-lg shadow-rose-900/15 hover:bg-[#c14f38]",
+      "border-b-4 border-[#5c2015] bg-[#b0392a] text-white shadow-lg shadow-rose-900/15 hover:bg-[#963224]",
   };
   return (
     <button
-      className={`rounded-lg px-4 py-2.5 text-sm font-black transition duration-150 hover:-translate-y-0.5 active:translate-y-0.5 ${variants[variant]} ${className}`}
+      className={`rounded-lg px-4 py-2.5 text-sm font-black uppercase tracking-wide transition duration-150 hover:-translate-y-0.5 active:translate-y-0.5 ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -34,15 +34,15 @@ export function Button({ variant = "primary", className = "", ...props }) {
 export function Field({ label, hint, children }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1 block text-xs font-black uppercase tracking-[0.12em] text-[#6c5a3a]">{label}</span>
+      <span className="mb-1 block text-xs font-black uppercase tracking-[0.12em] text-[#8a6f5f]">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-[#7d705e]">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-[#8a6f5f]">{hint}</span>}
     </label>
   );
 }
 
 const inputCls =
-  "w-full rounded-lg border-2 border-[#3d2d18]/15 bg-[#fffaf0]/95 px-3 py-2.5 text-[#18212a] outline-none transition placeholder:text-[#9a8d79] focus:border-[#1f6f5f] focus:bg-white focus:ring-2 focus:ring-[#1f6f5f]/15";
+  "w-full rounded-lg border-2 border-[#2b211d]/15 bg-[#faf5ee]/95 px-3 py-2.5 text-[#2b211d] outline-none transition placeholder:text-[#a89787] focus:border-[#c8532f] focus:bg-white focus:ring-2 focus:ring-[#c8532f]/15";
 
 export function Input(props) {
   return <input {...props} className={`${inputCls} ${props.className || ""}`} />;
@@ -59,7 +59,7 @@ export function Select(props) {
 export function Spinner({ className = "" }) {
   return (
     <span
-      className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#e7d8b8] border-t-[#1f6f5f] ${className}`}
+      className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#e8d9c8] border-t-[#c8532f] ${className}`}
     />
   );
 }
@@ -100,7 +100,7 @@ export function AiLoader({ label = "L'IA réfléchit…" }) {
 export function ErrorMsg({ children }) {
   if (!children) return null;
   return (
-    <div className="rounded-lg border-2 border-[#d95f45]/25 bg-[#fff1ed] px-3 py-2 text-sm font-semibold text-[#a54231]">
+    <div className="rounded-lg border-2 border-[#b0392a]/25 bg-[#fbe6de] px-3 py-2 text-sm font-semibold text-[#7a2a1c]">
       {children}
     </div>
   );
@@ -108,13 +108,13 @@ export function ErrorMsg({ children }) {
 
 export function Badge({ children, color = "slate" }) {
   const colors = {
-    slate: "bg-[#efe4ce] text-[#68543a] border-[#d7c59d]",
-    green: "bg-[#1f6f5f]/12 text-[#1f6f5f] border-[#1f6f5f]/25",
-    amber: "bg-[#d89b2b]/18 text-[#7f5513] border-[#d89b2b]/35",
+    slate: "bg-[#f3e6d8] text-[#6b5644] border-[#e8d9c8]",
+    green: "bg-[#3f8f5a]/15 text-[#1f6f45] border-[#3f8f5a]/25",
+    amber: "bg-[#d9a441]/18 text-[#6b4a1a] border-[#d9a441]/35",
     sky: "bg-[#3477a8]/15 text-[#285179] border-[#3477a8]/25",
     violet: "bg-[#7150a4]/15 text-[#563d7d] border-[#7150a4]/25",
-    teal: "bg-[#4d9f6d]/15 text-[#25634a] border-[#4d9f6d]/25",
-    coral: "bg-[#d95f45]/15 text-[#9a3f30] border-[#d95f45]/25",
+    teal: "bg-[#3f8f5a]/15 text-[#1f6f45] border-[#3f8f5a]/25",
+    coral: "bg-[#b0392a]/15 text-[#7a2a1c] border-[#b0392a]/25",
   };
   return (
     <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-black ${colors[color] || colors.slate}`}>

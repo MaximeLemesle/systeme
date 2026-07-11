@@ -3,7 +3,7 @@ import { Button } from "./ui";
 import { formatDuration } from "../lib/time";
 
 // Confettis déterministes : éventail de trajectoires depuis le badge central.
-const CONFETTI_COLORS = ["#f0c66b", "#d95f45", "#4d9f6d", "#53b6ae", "#7150a4", "#3477a8"];
+const CONFETTI_COLORS = ["#ffd98a", "#b0392a", "#3f8f5a", "#e8935f", "#7150a4", "#3477a8"];
 const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
   color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
   cx: `${Math.round(Math.sin((i / 16) * Math.PI * 2) * (70 + (i % 3) * 45))}px`,
@@ -22,7 +22,7 @@ export default function RewardModal({ reward, onClose }) {
       onClick={onClose}
     >
       <div
-        className="reward-burst game-panel relative w-full max-w-sm overflow-hidden rounded-lg border-2 border-[#f0c66b]/30 bg-[#172126] p-6 text-center text-white shadow-2xl"
+        className="reward-burst game-panel relative w-full max-w-sm overflow-hidden rounded-lg border-2 border-[#ffd98a]/30 bg-[#1c1410] p-6 text-center text-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {CONFETTI.map((c, i) => (
@@ -32,16 +32,16 @@ export default function RewardModal({ reward, onClose }) {
             style={{ background: c.color, "--cx": c.cx, "--cy": c.cy, "--cr": c.cr, "--cd": c.cd }}
           />
         ))}
-        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-lg border-b-4 border-[#9b6818] bg-[#d89b2b] text-4xl font-black text-[#2b2114] shadow-lg shadow-amber-900/20">
+        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-lg border-b-4 border-[#8a6423] bg-[#d9a441] text-4xl font-black text-[#2b1c0a] shadow-lg shadow-amber-900/20">
           {leveledUp ? "↑" : "+"}
         </div>
-        <div className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#f0c66b]">
+        <div className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#ffd98a]">
           Récompense
         </div>
-        <h3 className="mb-1 text-2xl font-black">{title || "Bravo !"}</h3>
-        <p className="mb-4 text-5xl font-black text-[#f0c66b]">+{xpEarned} XP</p>
+        <h3 className="mb-1 font-display text-3xl">{title || "Bravo !"}</h3>
+        <p className="mb-4 text-5xl font-black text-[#ffd98a]">+{xpEarned} XP</p>
         {leveledUp && (
-          <div className="mb-4 rounded-lg border border-[#f0c66b]/25 bg-[#f0c66b]/15 px-3 py-2 text-sm font-black text-[#ffe2a0]">
+          <div className="mb-4 rounded-lg border border-[#ffd98a]/25 bg-[#ffd98a]/15 px-3 py-2 text-sm font-black text-[#ffd98a]">
             Niveau{newLevels.length > 1 ? "x" : ""} {newLevels.join(", ")} débloqué{newLevels.length > 1 ? "s" : ""}
           </div>
         )}

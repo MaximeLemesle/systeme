@@ -6,6 +6,8 @@ versionnage [SemVer](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.1.0] — 2026-07-11
+
 ### Ajouté
 - Compte administrateur créé par le seed (`admin@coach.local` / `admin123!`, surchargeable
   via `ADMIN_EMAIL` / `ADMIN_PASSWORD`) — seule façon d'obtenir le rôle `admin`.
@@ -17,6 +19,11 @@ versionnage [SemVer](https://semver.org/lang/fr/).
 - Message « session expirée » sur l'écran de connexion après une déconnexion sur `401`.
 
 ### Modifié
+- **Refonte visuelle complète de l'interface (« Running Club »)** : direction artistique
+  terracotta / argile / or, typographie d'affichage Bebas Neue, en-tête à bandes diagonales
+  façon dossard (badge XP incliné, numéro de dossard, bande dorée), hero « carte de campagne »
+  biseauté, jauge d'XP striée, carte de quête façon dossard perforé, piste d'entraînement
+  terracotta et bouton de validation biseauté.
 - Cache TanStack Query : `staleTime` de 30 s pour éviter de relancer immédiatement les mêmes requêtes.
 - README : titre aligné sur le nom du produit (« Running Club »).
 
@@ -40,5 +47,7 @@ versionnage [SemVer](https://semver.org/lang/fr/).
   par propriétaire (`404` sur ressource étrangère), XP jamais acceptée du client.
 - Tests d'intégration et unitaires (`node --test` + supertest).
 
-[Non publié]: https://github.com/MaximeLemesle/systeme/compare/main...HEAD
+[Non publié]: https://github.com/MaximeLemesle/systeme/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/MaximeLemesle/systeme/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/MaximeLemesle/systeme/releases/tag/v1.0.0
 [0.1.0]: https://github.com/MaximeLemesle/systeme/releases/tag/v0.1.0

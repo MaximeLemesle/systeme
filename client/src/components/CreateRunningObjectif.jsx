@@ -68,11 +68,11 @@ export default function CreateObjectif({ domaine }) {
   const questionsAsked = messages.filter((message) => message.role === "assistant").length;
 
   return (
-    <Card className="space-y-5 border-[#3477a8]/20 bg-[#fffaf0]/95">
+    <Card className="space-y-5 border-[#3477a8]/20 bg-[#faf5ee]/95">
       <div>
-        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#d95f45]">Nouvel objectif</span>
-        <h2 className="mt-1 text-2xl font-black text-[#18212a]">Prépare ta prochaine course</h2>
-        <p className="text-sm font-medium text-[#7d705e]">
+        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#b0392a]">Nouvel objectif</span>
+        <h2 className="mt-1 font-display text-3xl text-[#2b211d]">Prépare ta prochaine course</h2>
+        <p className="text-sm font-medium text-[#8a6f5f]">
           Décris librement ta cible. Le coach précisera le temps visé puis la date avant de la reformuler en objectif SMART.
         </p>
       </div>
@@ -93,7 +93,7 @@ export default function CreateObjectif({ domaine }) {
               className={`rounded-lg border-2 px-3 py-2 text-sm font-medium ${
                 message.role === "assistant"
                   ? "border-[#3477a8]/20 bg-[#e9f3fb] text-[#244d73]"
-                  : "ml-auto max-w-[90%] border-[#1f6f5f]/20 bg-[#1f6f5f]/10 text-[#174d42]"
+                  : "ml-auto max-w-[90%] border-[#c8532f]/20 bg-[#c8532f]/10 text-[#7a2a15]"
               }`}
             >
               <span className="mr-2 font-black">{message.role === "assistant" ? "Coach" : "Moi"}</span>
@@ -118,7 +118,7 @@ export default function CreateObjectif({ domaine }) {
             <Button type="submit" disabled={!answer.trim() || intake.isPending}>
               {messages.length ? "Répondre" : "Commencer"}
             </Button>
-            <span className="text-xs font-bold text-[#7d705e]">{questionsAsked} précision{questionsAsked > 1 ? "s" : ""}</span>
+            <span className="text-xs font-bold text-[#8a6f5f]">{questionsAsked} précision{questionsAsked > 1 ? "s" : ""}</span>
           </div>
         </form>
       )}
@@ -128,13 +128,13 @@ export default function CreateObjectif({ domaine }) {
       {create.isError && <ErrorMsg>{create.error.message}</ErrorMsg>}
 
       {draft && (
-        <div className="space-y-3 rounded-lg border-2 border-[#1f6f5f]/20 bg-[#1f6f5f]/10 p-4">
+        <div className="space-y-3 rounded-lg border-2 border-[#c8532f]/20 bg-[#c8532f]/10 p-4">
           <div className="flex flex-wrap gap-2">
             <Badge color={diffColor[draft.difficulty]}>{draft.difficulty}</Badge>
             <Badge>{draft.niveau}</Badge>
           </div>
-          <h3 className="text-xl font-black text-[#18212a]">{draft.title}</h3>
-          <p className="text-sm font-medium text-[#6c5a3a]">
+          <h3 className="font-display text-2xl text-[#2b211d]">{draft.title}</h3>
+          <p className="text-sm font-medium text-[#8a6f5f]">
             {draft.targetDistanceKm || draft.targetValue} {draft.unit || ""} · {draft.trainingFrequency} séances/semaine · {draft.planWeeks} semaines
           </p>
           <div className="flex flex-wrap gap-2">
@@ -192,7 +192,7 @@ function IntakeChat({ niveau, onProposal, creating }) {
   return (
     <section className="space-y-3 rounded-lg border-2 border-[#7150a4]/25 bg-[#f3effb]/70 p-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-black text-[#18212a]">🧭 Coach IA (discussion)</h3>
+        <h3 className="font-black text-[#2b211d]">🧭 Coach IA (discussion)</h3>
         {messages.length > 0 && (
           <button
             type="button"
@@ -205,7 +205,7 @@ function IntakeChat({ niveau, onProposal, creating }) {
       </div>
 
       {messages.length === 0 ? (
-        <p className="text-sm font-medium text-[#6c5a3a]">
+        <p className="text-sm font-medium text-[#8a6f5f]">
           Décris ton objectif de course : le coach te posera quelques questions (temps cible ou juste
           finir une distance, échéance, fréquence) puis te proposera un objectif prêt à lancer.
         </p>
@@ -216,7 +216,7 @@ function IntakeChat({ niveau, onProposal, creating }) {
               key={i}
               className={`max-w-[90%] rounded-lg px-3 py-2 text-sm font-medium ${
                 m.role === "user"
-                  ? "ml-auto bg-[#1f6f5f] text-white"
+                  ? "ml-auto bg-[#c8532f] text-white"
                   : "bg-white text-[#3a2f1e] shadow-sm"
               }`}
             >
@@ -231,19 +231,19 @@ function IntakeChat({ niveau, onProposal, creating }) {
 
       {/* Proposition finale */}
       {proposal && !send.isPending && (
-        <div className="animate-pop rounded-lg border-2 border-[#1f6f5f]/20 bg-[#1f6f5f]/10 p-4">
+        <div className="animate-pop rounded-lg border-2 border-[#c8532f]/20 bg-[#c8532f]/10 p-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge color={diffColor[proposal.difficulty]}>{proposal.difficulty}</Badge>
             <Badge>{proposal.archetype === "chrono" ? "Temps cible" : "Finir la distance"}</Badge>
             <Badge>{proposal.frequency} séances/sem</Badge>
           </div>
-          <p className="mt-1 font-black text-[#18212a]">{proposal.title}</p>
-          <p className="text-sm font-medium text-[#7d705e]">
+          <p className="mt-1 font-black text-[#2b211d]">{proposal.title}</p>
+          <p className="text-sm font-medium text-[#8a6f5f]">
             Cible : {proposal.target_value} {proposal.unit || ""} sur {proposal.target_distance_km} km
             {proposal.deadline ? ` · échéance ${proposal.deadline}` : ""}
           </p>
           {proposal.faisabilite && (
-            <p className="mt-2 text-sm italic text-[#6c5a3a]">{proposal.faisabilite}</p>
+            <p className="mt-2 text-sm italic text-[#8a6f5f]">{proposal.faisabilite}</p>
           )}
           <Button
             className="mt-3"

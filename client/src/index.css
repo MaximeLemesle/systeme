@@ -1,43 +1,28 @@
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 :root {
   color-scheme: light;
-  --ink: #18212a;
-  --muted: #68727a;
-  --panel: rgba(255, 252, 243, 0.92);
-  --line: rgba(52, 42, 28, 0.16);
-  --forest: #1f6f5f;
-  --leaf: #4d9f6d;
-  --coral: #d95f45;
-  --gold: #d89b2b;
+  --ink: #2b211d;
+  --muted: #8a6f5f;
+  --panel: rgba(250, 245, 238, 0.92);
+  --line: rgba(43, 33, 29, 0.16);
+  --forest: #c8532f;
+  --leaf: #3f8f5a;
+  --coral: #b0392a;
+  --gold: #d9a441;
   --sky: #3477a8;
   --violet: #7150a4;
+  --clay-dark: #1c1410;
+  --display-font: "Bebas Neue", sans-serif;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background-color: #f4ecd8;
-  background-image:
-    linear-gradient(115deg, rgba(31, 111, 95, 0.16) 0 18%, transparent 18% 100%),
-    linear-gradient(245deg, rgba(217, 95, 69, 0.12) 0 22%, transparent 22% 100%),
-    linear-gradient(32deg, transparent 0 46%, rgba(216, 155, 43, 0.12) 46% 49%, transparent 49% 100%),
-    repeating-linear-gradient(0deg, rgba(52, 42, 28, 0.045) 0 1px, transparent 1px 32px),
-    repeating-linear-gradient(90deg, rgba(52, 42, 28, 0.035) 0 1px, transparent 1px 32px);
-  background-attachment: fixed;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-color: #f3ece1;
   color: var(--ink);
   min-height: 100vh;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(135deg, transparent 0 35%, rgba(31, 111, 95, 0.08) 35% 36%, transparent 36% 100%),
-    linear-gradient(45deg, transparent 0 62%, rgba(52, 119, 168, 0.08) 62% 63%, transparent 63% 100%);
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 78%);
 }
 
 button, input, textarea, select {
@@ -45,7 +30,13 @@ button, input, textarea, select {
 }
 
 ::selection {
-  background: rgba(217, 95, 69, 0.28);
+  background: rgba(176, 57, 42, 0.28);
+}
+
+.font-display {
+  font-family: var(--display-font);
+  letter-spacing: 0.01em;
+  font-weight: 400;
 }
 
 .game-panel {
@@ -62,8 +53,7 @@ button, input, textarea, select {
   pointer-events: none;
   border-radius: inherit;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 18% 82%, rgba(255, 255, 255, 0.28)),
-    repeating-linear-gradient(135deg, rgba(52, 42, 28, 0.035) 0 1px, transparent 1px 12px);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 18% 82%, rgba(255, 255, 255, 0.28));
 }
 
 .game-panel > * {
@@ -96,9 +86,9 @@ button, input, textarea, select {
 
 /* Halo pulsé sur l'étape courante du parcours */
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(216, 155, 43, 0.55), 0 10px 24px rgba(31, 111, 95, 0.18); }
-  70% { box-shadow: 0 0 0 14px rgba(216, 155, 43, 0), 0 10px 24px rgba(31, 111, 95, 0.18); }
-  100% { box-shadow: 0 0 0 0 rgba(216, 155, 43, 0), 0 10px 24px rgba(31, 111, 95, 0.18); }
+  0% { box-shadow: 0 0 0 0 rgba(217, 164, 65, 0.55), 0 10px 24px rgba(200, 83, 47, 0.18); }
+  70% { box-shadow: 0 0 0 14px rgba(217, 164, 65, 0), 0 10px 24px rgba(200, 83, 47, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(217, 164, 65, 0), 0 10px 24px rgba(200, 83, 47, 0.18); }
 }
 .pulse-ring { animation: pulse-ring 1.8s infinite; }
 
