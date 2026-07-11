@@ -164,7 +164,7 @@ const IntakeIn = z.object({
       })
     )
     .min(1)
-    .max(9),
+    .max(25),
   niveau: RunnerLevel.optional().nullable(),
 });
 

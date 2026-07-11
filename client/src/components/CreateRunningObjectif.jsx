@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, AI_TIMEOUT_MS } from "../api/client";
-import { Card, Button, Field, Select, Badge, AiLoader, ErrorMsg, Textarea } from "./ui";
+import { Card, Button, Field, Input, Select, Badge, AiLoader, ErrorMsg, Textarea } from "./ui";
 
 const NIVEAUX = [
   ["débutant", "Débutant"],
@@ -73,7 +73,7 @@ export default function CreateObjectif({ domaine }) {
         <span className="text-xs font-black uppercase tracking-[0.18em] text-[#d95f45]">Nouvel objectif</span>
         <h2 className="mt-1 text-2xl font-black text-[#18212a]">Prépare ta prochaine course</h2>
         <p className="text-sm font-medium text-[#7d705e]">
-          Décris librement ta cible. Le coach peut poser jusqu&apos;à quatre questions avant de la structurer.
+          Décris librement ta cible. Le coach précisera le temps visé puis la date avant de la reformuler en objectif SMART.
         </p>
       </div>
 
@@ -118,7 +118,7 @@ export default function CreateObjectif({ domaine }) {
             <Button type="submit" disabled={!answer.trim() || intake.isPending}>
               {messages.length ? "Répondre" : "Commencer"}
             </Button>
-            <span className="text-xs font-bold text-[#7d705e]">{questionsAsked} / 4 questions</span>
+            <span className="text-xs font-bold text-[#7d705e]">{questionsAsked} précision{questionsAsked > 1 ? "s" : ""}</span>
           </div>
         </form>
       )}

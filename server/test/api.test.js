@@ -282,9 +282,9 @@ test("une session libre ignore la difficulté et l'XP envoyées par le client", 
   assert.equal(response.body.session.difficulty, "moyen");
 });
 
-test("l'intake refuse une cinquième question avant tout appel Ollama", async () => {
+test("l'intake refuse une conversation trop longue avant tout appel Ollama", async () => {
   const account = await register("intake-limit");
-  const messages = Array.from({ length: 9 }, (_, index) => ({
+  const messages = Array.from({ length: 26 }, (_, index) => ({
     role: index % 2 === 0 ? "assistant" : "user",
     content: `Message ${index + 1}`,
   }));
